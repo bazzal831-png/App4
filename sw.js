@@ -1,4 +1,4 @@
-const CACHE_NAME = "smoking-tracker-v15";
+const CACHE_NAME = "smoking-tracker-v16";
 const ASSETS_TO_CACHE = [
   "./",
   "./index.html",
@@ -61,4 +61,5 @@ self.addEventListener("fetch", (event) => {
       });
     })
   );
+
 });
