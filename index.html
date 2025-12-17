@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Smoking Tracker (Fixed)</title>
+    <title>Smoking Tracker (17h Logic)</title>
     
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#262626">
@@ -65,7 +65,7 @@
         #resetDataButton { background-color: #dc3545; }
         
         /* Tracker Main */
-        .tracker-container { background: #262626; color: #e0e0e0; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); padding: 20px; width: 800px; margin: 40px auto 20px; overflow-x: visible; overflow-y: visible; }
+        .tracker-container { background: #262626; color: #e0e0e0; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); padding: 20px; width: 800px; margin: 40px auto 20px; overflow-x: visible; overflow-y: auto; }
         .tracker-container h1 { text-align: center; margin-top: 0; }
         .tracker-container button.back-button { background: #6c757d; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; margin-bottom: 15px; }
         .daily-box { background: #333; padding: 15px; border-radius: 6px; text-align: center; margin-bottom: 20px; position: relative; }
@@ -91,25 +91,15 @@
         .wishlist-bar-bg { width: 100%; height: 8px; background: #555; border-radius: 4px; overflow: hidden; }
         .wishlist-bar-fill { height: 100%; background: linear-gradient(90deg, #9c27b0, #e91e63); width: 0%; transition: width 0.5s; }
         
-        /* DELETE BUTTON FIX */
-        .wishlist-delete { 
-            background: #ff4444; 
-            color: white; 
-            border: none; 
-            border-radius: 3px; 
-            padding: 2px 8px; 
-            cursor: pointer; 
-            font-size: 0.8em; 
-            margin-left: 10px;
-        }
+        .wishlist-delete { background: #ff4444; color: white; border: none; border-radius: 3px; padding: 2px 8px; cursor: pointer; font-size: 0.8em; margin-left: 10px; }
 
         /* Table Fix */
         .data-table { width: 100%; border-collapse: collapse; margin-top: 20px; table-layout: fixed; }
         .data-table th, .data-table td { padding: 8px; border-bottom: 1px solid #555; text-align: left; font-size: 0.85em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .data-table th:nth-child(1) { width: 25%; } /* Time */
-        .data-table th:nth-child(2) { width: 20%; } /* Diff */
-        .data-table th:nth-child(3) { width: 35%; } /* Reason */
-        .data-table th:nth-child(4) { width: 20%; } /* Action */
+        .data-table th:nth-child(1) { width: 25%; } 
+        .data-table th:nth-child(2) { width: 20%; } 
+        .data-table th:nth-child(3) { width: 35%; } 
+        .data-table th:nth-child(4) { width: 20%; } 
         
         .delete-btn { background: #ff4444; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; }
 
@@ -216,7 +206,6 @@
                 <div class="money-box"><div class="money-label">Saved (Limit)</div><div class="money-val" id="moneySavedDisplay" style="color:#00e676">$0.00</div></div>
             </div>
             
-            <!-- WISHLIST (Fixed Delete) -->
             <div class="wishlist-container">
                 <div style="font-size:0.9em; color:#aaa; margin-bottom:5px;">Wishlist Queue</div>
                 <div class="wishlist-add-form">
@@ -302,7 +291,6 @@
     
     <div id="heatmapModal" class="modal-overlay"><div class="modal-content"><button class="close-modal" onclick="closeModal('heatmapModal')">×</button><h3>Risk Times (24h)</h3><div class="heatmap-grid" id="heatmapGrid"></div><div class="heatmap-labels"><span>12AM</span><span>6AM</span><span>12PM</span><span>6PM</span><span>11PM</span></div></div></div>
 
-    <!-- DETOX MODAL -->
     <div id="detoxModal" class="modal-overlay">
         <div class="modal-content">
             <button class="close-modal" onclick="closeModal('detoxModal')">×</button>
@@ -375,7 +363,6 @@
             if(sel.value === 'Other') { inp.classList.remove('hidden'); inp.focus(); } else { inp.classList.add('hidden'); }
         }
 
-        // --- WISHLIST LOGIC ---
         function addWishlistGoal() {
             const name = document.getElementById('newGoalName').value;
             const cost = parseFloat(document.getElementById('newGoalCost').value);
@@ -447,7 +434,6 @@
             else { icon.textContent = "🥀"; icon.classList.add('tree-red'); }
         }
 
-        // --- WEEKLY MONITOR & FINANCIAL CHART ---
         function openDetoxModal() { document.getElementById('detoxModal').classList.add('active'); if(!smokingData.settings.historyYears) document.getElementById('historyYearsInput').value=15; if(!smokingData.settings.historyBaseline) document.getElementById('historyBaselineInput').value=40; updateDetoxStats(); }
         function saveDetoxSettings() { smokingData.settings.historyYears = parseInt(document.getElementById('historyYearsInput').value); smokingData.settings.historyBaseline = parseInt(document.getElementById('historyBaselineInput').value); saveSmokingDataToStorage(); updateDetoxStats(); }
         
@@ -521,7 +507,6 @@
             saveSmokingDataToStorage(); refreshUI(); 
         }
         
-        // --- ADDED MISSING FUNCTION HERE ---
         function saveSmokingDataToStorage() {
             if (currentUser && smokingData) {
                 db.collection('users').doc(currentUser.uid).set({
@@ -540,7 +525,6 @@
             const per=getOrCreateCurrentPeriod(target);
             const btn = src==='today'?document.getElementById('logCigaretteTodayButton'):document.querySelector('.log-btn');
             
-            // COOLDOWN ALERT ONLY IF IT IS TODAY
             if(src==='today' || target===`${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2,'0')}-${now.getDate().toString().padStart(2,'0')}`) {
                 if(btn && btn.getAttribute('data-status')==='cooldown'){if(!confirm("Wait?"))return;}
             }
@@ -626,16 +610,30 @@
             rec.periods[0].entries.forEach((e,i,a)=>{const d=i>0?getTimeDifference(a[i-1].timestamp,e.timestamp):'-';tb.innerHTML+=`<tr><td>${e.time}</td><td>${d}</td><td>${e.reason}</td><td><button class="delete-btn" onclick="deleteEntry(${e.id})">Del</button></td></tr>`});
             updateLogCigaretteButtonState();
         }
+
+        /* --- UPDATED 17-HOUR LOGIC HERE --- */
         function updateLogCigaretteButtonState() {
             const b1=document.getElementById('logCigaretteTodayButton'), b2=document.querySelector('.log-btn');
             const n=new Date(), tStr=`${n.getFullYear()}-${(n.getMonth()+1).toString().padStart(2,'0')}-${n.getDate().toString().padStart(2,'0')}`;
-            const getS=(d)=>{const r=smokingData.dailyRecords[d], l=(r&&r.periods[0].entries.length)?r.periods[0].lastActivity:Date.now(), lim=r?r.limit:0; let t=0,c=false; if(lim>0){t=l+(86400000/lim);if(t>Date.now())c=true;} return {t,c,l}};
+            
+            const getS=(d)=>{
+                const r=smokingData.dailyRecords[d], 
+                      l=(r && r.periods[0].entries.length) ? r.periods[0].lastActivity : Date.now(), 
+                      lim=r ? r.limit : 0; 
+                let t=0, c=false; 
+                
+                if(lim > 0){
+                    // CHANGED: 61200000ms = 17 hours (instead of 86400000 / 24h)
+                    t = l + (61200000 / lim); 
+                    if(t > Date.now()) c = true;
+                } 
+                return {t, c, l};
+            };
+
             const s=getS(tStr);
             if(b1) runTimer(b1, s.t, s.c, s.l, true);
             if(b2 && selectedDate) {
-                // FIXED COMPARISON LOGIC
                 const todayFormatted = `${n.getFullYear()}-${(n.getMonth()+1).toString().padStart(2,'0')}-${n.getDate().toString().padStart(2,'0')}`;
-                
                 if(selectedDate === todayFormatted) {
                     runTimer(b2, s.t, s.c, s.l, false);
                 } else { 
@@ -645,13 +643,23 @@
                 }
             }
         }
+
         function runTimer(b, t, c, l, isCal) {
             clearInterval(b.int);
             const tick=()=>{
-                if(c){const r=Math.max(0,t-Date.now()); b.innerHTML=(isCal?'Log':'Log')+(r>0?` <span class="cooldown-timer-display">(${formatDuration(r/1000)})</span>`:''); b.setAttribute('data-status','cooldown'); if(r<=0){clearInterval(b.int);showCooldownNotification();updateLogCigaretteButtonState();}}
-                else{const e=Math.max(0,Date.now()-l); b.innerHTML=(isCal?'Log':'Log')+` <span class="elapsed-counter">${formatDuration(e/1000)}</span>`; b.setAttribute('data-status','allowed');}
+                if(c){
+                    const r=Math.max(0,t-Date.now()); 
+                    b.innerHTML=(isCal?'Log':'Log')+(r>0?` <span class="cooldown-timer-display">(${formatDuration(r/1000)})</span>`:''); 
+                    b.setAttribute('data-status','cooldown'); 
+                    if(r<=0){clearInterval(b.int);showCooldownNotification();updateLogCigaretteButtonState();}
+                } else {
+                    const e=Math.max(0,Date.now()-l); 
+                    b.innerHTML=(isCal?'Log':'Log')+` <span class="elapsed-counter">${formatDuration(e/1000)}</span>`; 
+                    b.setAttribute('data-status','allowed');
+                }
             }; tick(); b.int=setInterval(tick,1000);
         }
+
         function toggleTask(id){const r=smokingData.dailyRecords[selectedDate];const t=r.tasks.find(x=>x.id===id);t.completed=!t.completed;saveSmokingDataToStorage();refreshUI();}
         function delTask(id){const r=smokingData.dailyRecords[selectedDate];r.tasks=r.tasks.filter(x=>x.id!==id);saveSmokingDataToStorage();refreshUI();}
         function saveDailyLimit(){const v=parseInt(document.getElementById('dailyLimitInput').value);smokingData.dailyRecords[selectedDate].limit=v;saveSmokingDataToStorage();document.getElementById('saveDailyLimitButton').classList.add('hidden');refreshUI();}
