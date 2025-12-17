@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Smoking Tracker (17h Logic)</title>
+    <title>Smoking Tracker (16h Logic)</title>
     
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#262626">
@@ -40,7 +40,7 @@
         
         /* RESTORED BIG BUTTON STYLES */
         #logCigaretteTodayButton, .controls button.log-btn { 
-            background-color: #ff4444; /* Default Red */
+            background-color: #ff4444; 
             color: white; 
             border: none; 
             border-radius: 25px; 
@@ -611,7 +611,7 @@
             updateLogCigaretteButtonState();
         }
 
-        /* --- UPDATED 17-HOUR LOGIC HERE --- */
+        /* --- UPDATED 16-HOUR LOGIC HERE --- */
         function updateLogCigaretteButtonState() {
             const b1=document.getElementById('logCigaretteTodayButton'), b2=document.querySelector('.log-btn');
             const n=new Date(), tStr=`${n.getFullYear()}-${(n.getMonth()+1).toString().padStart(2,'0')}-${n.getDate().toString().padStart(2,'0')}`;
@@ -623,8 +623,8 @@
                 let t=0, c=false; 
                 
                 if(lim > 0){
-                    // CHANGED: 61200000ms = 17 hours (instead of 86400000 / 24h)
-                    t = l + (61200000 / lim); 
+                    // Logic: 16 hours (57,600,000ms) divided by the daily limit
+                    t = l + (57600000 / lim); 
                     if(t > Date.now()) c = true;
                 } 
                 return {t, c, l};
