@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Smoking Tracker (Fixed UI)</title>
+    <title>Smoking Tracker (Fixed)</title>
     
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#262626">
@@ -521,6 +521,17 @@
             saveSmokingDataToStorage(); refreshUI(); 
         }
         
+        // --- ADDED MISSING FUNCTION HERE ---
+        function saveSmokingDataToStorage() {
+            if (currentUser && smokingData) {
+                db.collection('users').doc(currentUser.uid).set({
+                    smokingData: smokingData
+                }, { merge: true })
+                .then(() => { console.log("Saved to cloud"); })
+                .catch((e) => { console.error("Error saving: ", e); });
+            }
+        }
+
         function handleNewCigarette(src) {
             let target=selectedDate; const now=getDeviceLocalTime();
             if(src==='today') target=`${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2,'0')}-${now.getDate().toString().padStart(2,'0')}`;
