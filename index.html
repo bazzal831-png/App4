@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Smoking Tracker (Fixed Timer)</title>
+    <title>Smoking Tracker (Fixed + New Stats)</title>
     
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#262626">
@@ -40,7 +40,7 @@
         .calendar-controls { margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; width: 100%; }
         .calendar-controls button { padding: 8px 16px; border-radius: 5px; cursor: pointer; transition: background-color 0.3s ease; background: #007bff; color: white; border: none; }
         
-        /* RESTORED BIG BUTTON STYLES */
+        /* Big Button Styles */
         #logCigaretteTodayButton, .controls button.log-btn { 
             background-color: #ff4444; 
             color: white; 
@@ -95,7 +95,7 @@
         
         .wishlist-delete { background: #ff4444; color: white; border: none; border-radius: 3px; padding: 2px 8px; cursor: pointer; font-size: 0.8em; margin-left: 10px; }
 
-        /* Table Fix with Flagged Rows */
+        /* Table & Flags */
         .data-table { width: 100%; border-collapse: collapse; margin-top: 20px; table-layout: fixed; }
         .data-table th, .data-table td { padding: 8px; border-bottom: 1px solid #555; text-align: left; font-size: 0.85em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .data-table th:nth-child(1) { width: 25%; } 
@@ -103,7 +103,6 @@
         .data-table th:nth-child(3) { width: 35%; } 
         .data-table th:nth-child(4) { width: 20%; } 
         
-        /* Flagged Row for early smoking */
         .flagged-row { background-color: rgba(220, 53, 69, 0.15) !important; }
         .flagged-row td { color: #ff9999 !important; }
 
@@ -162,8 +161,11 @@
         .detox-stats { text-align: left; }
         .progress-bar-bg { width: 100%; height: 12px; background: #444; border-radius: 6px; overflow: hidden; margin-top: 5px; position: relative; }
         .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #ff4444, #ff9900); width: 0%; transition: width 0.5s ease; }
-        .heatmap-grid { display: flex; align-items: flex-end; justify-content: space-between; height: 150px; margin-top: 20px; gap: 2px; }
-        .heatmap-bar { background: #ff4444; width: 100%; border-radius: 2px 2px 0 0; }
+        
+        /* Heatmap Updates */
+        .heatmap-grid { display: flex; align-items: flex-end; justify-content: space-between; height: 180px; margin-top: 20px; gap: 2px; padding-top: 20px; }
+        .heatmap-bar { background: #ff4444; width: 100%; border-radius: 2px 2px 0 0; position: relative; }
+        .heatmap-count { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); color: #fff; font-size: 0.7em; margin-bottom: 2px; }
         .heatmap-labels { display: flex; justify-content: space-between; font-size: 0.7em; color: #aaa; margin-top: 5px; }
 
         @media (max-width: 768px) { .tracker-container { width: 95%; overflow-x: auto; } .calendar-container { width: 95%; padding: 15px; } }
@@ -295,7 +297,7 @@
     
     <div id="breathingModal" class="modal-overlay"><div class="modal-content"><button class="close-modal" onclick="closeModal('breathingModal')">×</button><h3>Calm Down</h3><div class="circle-container" id="breathingContainer"><div class="breathing-circle"></div><div class="breathing-text" id="breathingText">Ready?</div></div></div></div>
     
-    <div id="heatmapModal" class="modal-overlay"><div class="modal-content"><button class="close-modal" onclick="closeModal('heatmapModal')">×</button><h3>Risk Times (24h)</h3><div class="heatmap-grid" id="heatmapGrid"></div><div class="heatmap-labels"><span>12AM</span><span>6AM</span><span>12PM</span><span>6PM</span><span>11PM</span></div></div></div>
+    <div id="heatmapModal" class="modal-overlay"><div class="modal-content"><button class="close-modal" onclick="closeModal('heatmapModal')">×</button><h3>Risk Times (All Time)</h3><div class="heatmap-grid" id="heatmapGrid"></div><div class="heatmap-labels"><span>12AM</span><span>6AM</span><span>12PM</span><span>6PM</span><span>11PM</span></div></div></div>
 
     <div id="detoxModal" class="modal-overlay">
         <div class="modal-content">
@@ -316,6 +318,12 @@
                     <div class="detox-stat-item"><div class="detox-stat-title" id="detoxLoadTitle">Load</div><div class="progress-bar-bg"><div class="progress-bar-fill" id="detoxProgressBar"></div></div><div style="display:flex; justify-content:space-between; font-size:0.8em;"><span id="detoxCurrentVal">0</span><span id="detoxBaselineVal">40</span></div></div>
                     <div class="detox-stat-item"><div class="detox-stat-title">Avoided</div><div class="detox-stat-val" id="detoxAvoidedToday" style="color:#00e676;">0</div></div>
                     <div class="detox-stat-item"><div class="detox-stat-title">Reduction</div><div class="detox-stat-val" id="detoxReductionPercent">0%</div></div>
+                    
+                    <!-- New Weekly Cost Item -->
+                    <div class="detox-stat-item" id="detoxCostItem" style="margin-top:15px; border-top:1px solid #444; padding-top:10px;">
+                        <div class="detox-stat-title" id="detoxCostTitle">Daily Cost</div>
+                        <div class="detox-stat-val" id="detoxCostVal" style="color:#ffc107;">$0.00</div>
+                    </div>
                 </div>
             </div>
 
@@ -471,15 +479,24 @@
             if(isMoney) updateFinancialChart(); else updateDetoxStats();
         }
 
+        /* --- UPDATED DETOX STATS WITH WEEKLY COST --- */
         function updateDetoxStats() {
             const baselineDay = smokingData.settings.historyBaseline || 1;
             let actual = 0, baseline = 0;
             const rec = smokingData.dailyRecords[selectedDate];
 
+            const packPrice = smokingData.settings.packPrice || 0;
+            const packSize = smokingData.settings.packSize || 20;
+            const costPerCig = packSize > 0 ? (packPrice / packSize) : 0;
+
             if (currentDetoxTab === 'daily') {
                 document.getElementById('detoxLoadTitle').textContent = "Daily Load";
                 actual = (rec && rec.periods[0]) ? rec.periods[0].entries.length : 0;
                 baseline = (rec && rec.limit > 0) ? rec.limit : baselineDay;
+                
+                // Cost Update
+                document.getElementById('detoxCostTitle').textContent = "Daily Cost (Burnt)";
+                document.getElementById('detoxCostVal').textContent = '$' + (actual * costPerCig).toFixed(2);
             } else {
                 document.getElementById('detoxLoadTitle').textContent = "Weekly Load (Sum Limits)";
                 const now = new Date();
@@ -500,6 +517,10 @@
                     }
                 }
                 if(baseline === 0) baseline = 1; 
+
+                // Cost Update (Weekly)
+                document.getElementById('detoxCostTitle').textContent = "Weekly Cost (Burnt)";
+                document.getElementById('detoxCostVal').textContent = '$' + (actual * costPerCig).toFixed(2);
             }
 
             const percent = Math.min((actual / baseline) * 100, 100);
@@ -565,7 +586,6 @@
             const existingRecord = smokingData.dailyRecords[target];
             if(existingRecord && existingRecord.limit > 0) {
                 const p = existingRecord.periods[0];
-                // Check against entries instead of just lastActivity to be safe
                 if(p.entries.length > 0) {
                    const lastTime = p.entries[p.entries.length - 1].timestamp;
                    const allowedInterval = 57600000 / existingRecord.limit;
@@ -602,21 +622,13 @@
         function deleteEntry(id) {
             if (confirm("Delete this entry?")) {
                 const p = smokingData.dailyRecords[selectedDate].periods[0];
-                
-                // 1. Remove item
                 p.entries = p.entries.filter(e => e.id !== id);
-                
-                // 2. Sort to ensure chronological order
                 p.entries.sort((a, b) => a.timestamp - b.timestamp);
-
-                // 3. Reset lastActivity to the ACTUAL last item in the array
                 if (p.entries.length > 0) {
                     p.lastActivity = p.entries[p.entries.length - 1].timestamp;
                 } else {
-                    // No items left
                     p.lastActivity = 0; 
                 }
-
                 saveSmokingDataToStorage();
                 refreshUI();
             }
@@ -625,11 +637,40 @@
 
         function openHealthModal() { document.getElementById('healthModal').classList.add('active'); updateHealthTimeline(); }
         function openBreathingModal() { document.getElementById('breathingModal').classList.add('active'); startBreathingExercise(); }
+        
+        /* --- UPDATED HEATMAP WITH COUNTS --- */
         function openHeatmapModal() {
-            document.getElementById('heatmapModal').classList.add('active'); const grid=document.getElementById('heatmapGrid'); grid.innerHTML='';
-            const h=new Array(24).fill(0); Object.values(smokingData.dailyRecords).forEach(r=>{if(r.periods)r.periods[0].entries.forEach(e=>h[new Date(e.timestamp).getHours()]++)});
-            const m=Math.max(...h)||1; h.forEach(v=>{const b=document.createElement('div'); b.className='heatmap-bar'; b.style.height=`${(v/m)*100}%`; grid.appendChild(b);});
+            document.getElementById('heatmapModal').classList.add('active'); 
+            const grid=document.getElementById('heatmapGrid'); 
+            grid.innerHTML='';
+            
+            const h=new Array(24).fill(0); 
+            Object.values(smokingData.dailyRecords).forEach(r=>{
+                if(r.periods) r.periods[0].entries.forEach(e => {
+                    h[new Date(e.timestamp).getHours()]++;
+                });
+            });
+            
+            const m=Math.max(...h)||1; 
+            
+            h.forEach(v => {
+                const b=document.createElement('div'); 
+                b.className='heatmap-bar'; 
+                b.style.height=`${(v/m)*100}%`; 
+                
+                // Add count number if > 0
+                if(v > 0) {
+                    const countSpan = document.createElement('span');
+                    countSpan.className = 'heatmap-count';
+                    countSpan.innerText = v;
+                    b.appendChild(countSpan);
+                }
+                
+                grid.appendChild(b);
+            });
         }
+        /* ----------------------------------- */
+
         function closeModal(id) { document.getElementById(id).classList.remove('active'); if(id==='breathingModal') clearInterval(breatheInt); }
         function updateHealthTimeline() {
             const list=document.getElementById('healthList'); list.innerHTML=''; let last=0;
@@ -716,15 +757,12 @@
             const getS = (d) => {
                 const r = smokingData.dailyRecords[d];
                 const lim = r ? r.limit : 0;
-                
-                // FORCE READ from array to ensure sync after delete
                 let l = 0;
                 if (r && r.periods[0].entries.length > 0) {
                     l = r.periods[0].entries[r.periods[0].entries.length - 1].timestamp;
                 }
                 
                 let t = 0, c = false; 
-                // Only calculate cooldown if there are cigarettes AND a limit
                 if(lim > 0 && l > 0){
                     t = l + (57600000 / lim); 
                     if(t > Date.now()) c = true;
