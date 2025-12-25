@@ -95,7 +95,7 @@
         
         .wishlist-delete { background: #ff4444; color: white; border: none; border-radius: 3px; padding: 2px 8px; cursor: pointer; font-size: 0.8em; margin-left: 10px; }
 
-        /* Table Fix */
+        /* Table Fix with Flagged Rows */
         .data-table { width: 100%; border-collapse: collapse; margin-top: 20px; table-layout: fixed; }
         .data-table th, .data-table td { padding: 8px; border-bottom: 1px solid #555; text-align: left; font-size: 0.85em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .data-table th:nth-child(1) { width: 25%; } 
@@ -103,6 +103,10 @@
         .data-table th:nth-child(3) { width: 35%; } 
         .data-table th:nth-child(4) { width: 20%; } 
         
+        /* NEW STYLE: Flagged Row for early smoking */
+        .flagged-row { background-color: rgba(220, 53, 69, 0.15) !important; }
+        .flagged-row td { color: #ff9999 !important; }
+
         .delete-btn { background: #ff4444; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; }
 
         /* Controls */
@@ -564,6 +568,23 @@
             if(src==='today') target=`${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2,'0')}-${now.getDate().toString().padStart(2,'0')}`;
             let trig=document.getElementById('triggerSelect').value; if(trig==='Other')trig=document.getElementById('customTriggerInput').value; if(src==='today')trig="Quick Log";
             
+            // --- FLAGGED CHECK LOGIC ---
+            // Before getting/creating, let's look at the EXISTING record if any to check timing
+            let isFlagged = false;
+            const existingRecord = smokingData.dailyRecords[target];
+            if(existingRecord && existingRecord.limit > 0) {
+                const p = existingRecord.periods[0];
+                if(p && p.lastActivity > 0 && p.entries.length > 0) {
+                    // Logic: 16 hours / limit
+                    const allowedInterval = 57600000 / existingRecord.limit;
+                    const nextAllowedTime = p.lastActivity + allowedInterval;
+                    if(now.getTime() < nextAllowedTime) {
+                        isFlagged = true;
+                    }
+                }
+            }
+            // ---------------------------
+
             const per=getOrCreateCurrentPeriod(target);
             const btn = src==='today'?document.getElementById('logCigaretteTodayButton'):document.querySelector('.log-btn');
             
@@ -571,7 +592,15 @@
                 if(btn && btn.getAttribute('data-status')==='cooldown'){if(!confirm("Wait?"))return;}
             }
 
-            per.entries.push({id:now.getTime(), date:target, time:now.toLocaleTimeString(), timestamp:now.getTime(), reason:trig||"Unspecified"});
+            per.entries.push({
+                id:now.getTime(), 
+                date:target, 
+                time:now.toLocaleTimeString(), 
+                timestamp:now.getTime(), 
+                reason:trig||"Unspecified",
+                flagged: isFlagged // Save the flag status
+            });
+
             per.entries.sort((a,b)=>a.timestamp-b.timestamp); per.lastActivity=now.getTime();
             saveSmokingDataToStorage();
             if(target===selectedDate) refreshUI(); else renderCalendar();
@@ -646,14 +675,20 @@
             const ul=document.getElementById('taskList'); ul.innerHTML='';
             rec.tasks.forEach(t=>{ul.innerHTML+=`<li><input type="checkbox" ${t.completed?'checked':''} onchange="toggleTask(${t.id})"><label>${t.text}</label><button onclick="delTask(${t.id})">×</button></li>`});
             
-            // --- FIX: Daily Limit Input now strictly reflects the record for this specific day ---
             document.getElementById('dailyLimitInput').value = (rec && rec.limit > 0) ? rec.limit : '';
             document.getElementById('saveDailyLimitButton').classList.add('hidden');
 
             populateChartSelects(); updateMainChart();
             
             const tb=document.getElementById('dataBody'); tb.innerHTML='';
-            rec.periods[0].entries.forEach((e,i,a)=>{const d=i>0?getTimeDifference(a[i-1].timestamp,e.timestamp):'-';tb.innerHTML+=`<tr><td>${e.time}</td><td>${d}</td><td>${e.reason}</td><td><button class="delete-btn" onclick="deleteEntry(${e.id})">Del</button></td></tr>`});
+            rec.periods[0].entries.forEach((e,i,a)=>{
+                const d=i>0?getTimeDifference(a[i-1].timestamp,e.timestamp):'-';
+                // --- VISUALIZE FLAGGED ROWS ---
+                const rowClass = e.flagged ? 'flagged-row' : '';
+                const reasonText = e.reason + (e.flagged ? ' ⚠️' : '');
+                
+                tb.innerHTML+=`<tr class="${rowClass}"><td>${e.time}</td><td>${d}</td><td>${reasonText}</td><td><button class="delete-btn" onclick="deleteEntry(${e.id})">Del</button></td></tr>`
+            });
             updateLogCigaretteButtonState();
         }
 
@@ -710,7 +745,6 @@
         function toggleTask(id){const r=smokingData.dailyRecords[selectedDate];const t=r.tasks.find(x=>x.id===id);t.completed=!t.completed;saveSmokingDataToStorage();refreshUI();}
         function delTask(id){const r=smokingData.dailyRecords[selectedDate];r.tasks=r.tasks.filter(x=>x.id!==id);saveSmokingDataToStorage();refreshUI();}
         
-        // --- FIX: Only save limit for the selected date ---
         function saveDailyLimit(){
             const v=parseInt(document.getElementById('dailyLimitInput').value);
             if(!smokingData.dailyRecords[selectedDate]) smokingData.dailyRecords[selectedDate] = ensureDailyRecordStructure({});
