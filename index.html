@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Smoking Tracker (Final Fixed)</title>
+    <title>Smoking Tracker (Fixed Timer)</title>
     
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#262626">
@@ -103,7 +103,7 @@
         .data-table th:nth-child(3) { width: 35%; } 
         .data-table th:nth-child(4) { width: 20%; } 
         
-        /* NEW STYLE: Flagged Row for early smoking */
+        /* Flagged Row for early smoking */
         .flagged-row { background-color: rgba(220, 53, 69, 0.15) !important; }
         .flagged-row td { color: #ff9999 !important; }
 
@@ -332,7 +332,7 @@
         'use strict';
         
         // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        // هام: استبدل الكود أدناه بالـ Firebase Config الخاص بك من لوحة تحكم Firebase
+        // هام: استبدل الكود أدناه بالـ Firebase Config الخاص بك
         // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         const firebaseConfig = { 
             apiKey: "AIzaSyC7K8VY7GHb9BnA2OIpUN__zlm_OZm0kas", 
@@ -355,16 +355,10 @@
 
         let currentUser=null, unsubscribeDoc=null;
         
-        // Updated Login with Error Handling
         document.getElementById('loginBtn').onclick = () => {
             auth.signInWithPopup(new firebase.auth.GoogleAuthProvider())
-            .then((result) => {
-                console.log("Logged in successfully");
-            })
-            .catch((error) => {
-                console.error("Login Error:", error);
-                alert("Login Failed: " + error.message + "\n\n(Check Console F12 for details)");
-            });
+            .then((result) => { console.log("Logged in"); })
+            .catch((error) => { console.error("Login Error:", error); alert("Login Failed: " + error.message); });
         };
 
         document.getElementById('logoutBtn').onclick = () => auth.signOut();
@@ -487,7 +481,6 @@
                 actual = (rec && rec.periods[0]) ? rec.periods[0].entries.length : 0;
                 baseline = (rec && rec.limit > 0) ? rec.limit : baselineDay;
             } else {
-                // Modified Weekly Logic: Sum of Daily Limits for current week
                 document.getElementById('detoxLoadTitle').textContent = "Weekly Load (Sum Limits)";
                 const now = new Date();
                 const startOfWeek = new Date(now); 
@@ -568,28 +561,26 @@
             if(src==='today') target=`${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2,'0')}-${now.getDate().toString().padStart(2,'0')}`;
             let trig=document.getElementById('triggerSelect').value; if(trig==='Other')trig=document.getElementById('customTriggerInput').value; if(src==='today')trig="Quick Log";
             
-            // --- FLAGGED CHECK LOGIC ---
-            // Before getting/creating, let's look at the EXISTING record if any to check timing
             let isFlagged = false;
             const existingRecord = smokingData.dailyRecords[target];
             if(existingRecord && existingRecord.limit > 0) {
                 const p = existingRecord.periods[0];
-                if(p && p.lastActivity > 0 && p.entries.length > 0) {
-                    // Logic: 16 hours / limit
-                    const allowedInterval = 57600000 / existingRecord.limit;
-                    const nextAllowedTime = p.lastActivity + allowedInterval;
-                    if(now.getTime() < nextAllowedTime) {
-                        isFlagged = true;
-                    }
+                // Check against entries instead of just lastActivity to be safe
+                if(p.entries.length > 0) {
+                   const lastTime = p.entries[p.entries.length - 1].timestamp;
+                   const allowedInterval = 57600000 / existingRecord.limit;
+                   const nextAllowedTime = lastTime + allowedInterval;
+                   if(now.getTime() < nextAllowedTime) {
+                       isFlagged = true;
+                   }
                 }
             }
-            // ---------------------------
 
             const per=getOrCreateCurrentPeriod(target);
             const btn = src==='today'?document.getElementById('logCigaretteTodayButton'):document.querySelector('.log-btn');
             
             if(src==='today' || target===`${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2,'0')}-${now.getDate().toString().padStart(2,'0')}`) {
-                if(btn && btn.getAttribute('data-status')==='cooldown'){if(!confirm("Wait?"))return;}
+                if(btn && btn.getAttribute('data-status')==='cooldown'){if(!confirm("You are in cooling period. Log anyway?"))return;}
             }
 
             per.entries.push({
@@ -598,7 +589,7 @@
                 time:now.toLocaleTimeString(), 
                 timestamp:now.getTime(), 
                 reason:trig||"Unspecified",
-                flagged: isFlagged // Save the flag status
+                flagged: isFlagged
             });
 
             per.entries.sort((a,b)=>a.timestamp-b.timestamp); per.lastActivity=now.getTime();
@@ -607,7 +598,31 @@
             updateLogCigaretteButtonState();
         }
 
-        function deleteEntry(id) { if(confirm("Del?")){ const p=smokingData.dailyRecords[selectedDate].periods[0]; p.entries=p.entries.filter(e=>e.id!==id); saveSmokingDataToStorage(); refreshUI(); } }
+        /* --- FIXED DELETE LOGIC --- */
+        function deleteEntry(id) {
+            if (confirm("Delete this entry?")) {
+                const p = smokingData.dailyRecords[selectedDate].periods[0];
+                
+                // 1. Remove item
+                p.entries = p.entries.filter(e => e.id !== id);
+                
+                // 2. Sort to ensure chronological order
+                p.entries.sort((a, b) => a.timestamp - b.timestamp);
+
+                // 3. Reset lastActivity to the ACTUAL last item in the array
+                if (p.entries.length > 0) {
+                    p.lastActivity = p.entries[p.entries.length - 1].timestamp;
+                } else {
+                    // No items left
+                    p.lastActivity = 0; 
+                }
+
+                saveSmokingDataToStorage();
+                refreshUI();
+            }
+        }
+        /* -------------------------- */
+
         function openHealthModal() { document.getElementById('healthModal').classList.add('active'); updateHealthTimeline(); }
         function openBreathingModal() { document.getElementById('breathingModal').classList.add('active'); startBreathingExercise(); }
         function openHeatmapModal() {
@@ -683,7 +698,6 @@
             const tb=document.getElementById('dataBody'); tb.innerHTML='';
             rec.periods[0].entries.forEach((e,i,a)=>{
                 const d=i>0?getTimeDifference(a[i-1].timestamp,e.timestamp):'-';
-                // --- VISUALIZE FLAGGED ROWS ---
                 const rowClass = e.flagged ? 'flagged-row' : '';
                 const reasonText = e.reason + (e.flagged ? ' ⚠️' : '');
                 
@@ -692,32 +706,56 @@
             updateLogCigaretteButtonState();
         }
 
-        /* --- 16-HOUR LOGIC (Safety Check Added) --- */
+        /* --- FIXED TIMER LOGIC --- */
         function updateLogCigaretteButtonState() {
-            const b1=document.getElementById('logCigaretteTodayButton'), b2=document.querySelector('.log-btn');
-            const n=new Date(), tStr=`${n.getFullYear()}-${(n.getMonth()+1).toString().padStart(2,'0')}-${n.getDate().toString().padStart(2,'0')}`;
+            const b1 = document.getElementById('logCigaretteTodayButton');
+            const b2 = document.querySelector('.log-btn');
+            const n = new Date();
+            const tStr = `${n.getFullYear()}-${(n.getMonth()+1).toString().padStart(2,'0')}-${n.getDate().toString().padStart(2,'0')}`;
             
-            const getS=(d)=>{
-                const r=smokingData.dailyRecords[d], 
-                      l=(r && r.periods[0].entries.length) ? r.periods[0].lastActivity : Date.now(), 
-                      lim=r ? r.limit : 0; 
-                let t=0, c=false; 
+            const getS = (d) => {
+                const r = smokingData.dailyRecords[d];
+                const lim = r ? r.limit : 0;
                 
-                // Ensure limit is > 0 to avoid Infinity
-                if(lim > 0){
-                    // Logic: 16 hours (57,600,000ms) divided by the daily limit
+                // FORCE READ from array to ensure sync after delete
+                let l = 0;
+                if (r && r.periods[0].entries.length > 0) {
+                    l = r.periods[0].entries[r.periods[0].entries.length - 1].timestamp;
+                }
+                
+                let t = 0, c = false; 
+                // Only calculate cooldown if there are cigarettes AND a limit
+                if(lim > 0 && l > 0){
                     t = l + (57600000 / lim); 
                     if(t > Date.now()) c = true;
                 } 
                 return {t, c, l};
             };
 
-            const s=getS(tStr);
-            if(b1) runTimer(b1, s.t, s.c, s.l, true);
+            const s = getS(tStr);
+            
+            // Calendar Button
+            if(b1) {
+                if (s.l === 0) {
+                    clearInterval(b1.int);
+                    b1.innerHTML = "Log Cigarette Today";
+                    b1.setAttribute('data-status', 'normal');
+                } else {
+                    runTimer(b1, s.t, s.c, s.l, true);
+                }
+            }
+
+            // Tracker Button
             if(b2 && selectedDate) {
                 const todayFormatted = `${n.getFullYear()}-${(n.getMonth()+1).toString().padStart(2,'0')}-${n.getDate().toString().padStart(2,'0')}`;
                 if(selectedDate === todayFormatted) {
-                    runTimer(b2, s.t, s.c, s.l, false);
+                    if (s.l === 0) {
+                        clearInterval(b2.int);
+                        b2.innerHTML = "Log New Cigarette";
+                        b2.setAttribute('data-status', 'normal');
+                    } else {
+                        runTimer(b2, s.t, s.c, s.l, false);
+                    }
                 } else { 
                     if(b2.int) clearInterval(b2.int); 
                     b2.setAttribute('data-status','normal'); 
@@ -725,6 +763,7 @@
                 }
             }
         }
+        /* ------------------------- */
 
         function runTimer(b, t, c, l, isCal) {
             clearInterval(b.int);
