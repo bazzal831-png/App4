@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Smoking Tracker (Risk & Recovery)</title>
+    <title>Smoking Tracker (Auto Risk & Recovery)</title>
     
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#262626">
@@ -168,9 +168,9 @@
         .heatmap-grid { display: flex; align-items: flex-end; justify-content: space-between; height: 150px; gap: 2px; padding-top: 20px; background: #333; border-radius: 4px; padding: 10px; }
         .heatmap-bar { background: #ff4444; width: 100%; border-radius: 2px 2px 0 0; position: relative; transition: height 0.3s; }
         .heatmap-count { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); color: #fff; font-size: 0.7em; margin-bottom: 2px; font-weight: bold; }
-        .heatmap-diff { position: absolute; top: 4px; left: 0; width: 100%; text-align: center; color: rgba(255,255,255,0.8); font-size: 0.6em; }
+        .heatmap-diff { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); color: #00e676; font-size: 0.8em; margin-top: 5px; font-weight: bold; }
         
-        .heatmap-labels { display: flex; justify-content: space-between; font-size: 0.7em; color: #aaa; margin-top: 5px; padding: 0 5px; }
+        .heatmap-labels { display: flex; justify-content: space-between; font-size: 0.7em; color: #aaa; margin-top: 25px; padding: 0 5px; }
         .heatmap-labels span { flex: 1; text-align: center; }
 
         .decay-controls { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 10px; background: #333; padding: 8px; border-radius: 5px; }
@@ -308,7 +308,7 @@
     
     <div id="breathingModal" class="modal-overlay"><div class="modal-content"><button class="close-modal" onclick="closeModal('breathingModal')">×</button><h3>Calm Down</h3><div class="circle-container" id="breathingContainer"><div class="breathing-circle"></div><div class="breathing-text" id="breathingText">Ready?</div></div></div></div>
     
-    <!-- MODIFIED HEATMAP MODAL -->
+    <!-- AUTOMATIC HEATMAP MODAL -->
     <div id="heatmapModal" class="modal-overlay">
         <div class="modal-content">
             <button class="close-modal" onclick="closeModal('heatmapModal')">×</button>
@@ -324,15 +324,18 @@
                 </div>
             </div>
 
-            <!-- New Chart (Recovery) -->
+            <!-- New Chart (Recovery Auto) -->
             <div class="heatmap-container">
-                <div class="heatmap-title">Current Risk Level (Decay)</div>
+                <div class="heatmap-title">Current Risk Level (Auto)</div>
                 <div class="decay-controls">
-                    <label>Reduce 1 cig every:</label>
+                    <label>Recover 1 cig every:</label>
                     <button class="decay-btn" onclick="adjustDecay(-5)">-</button>
-                    <input type="number" id="decayMinutesInput" value="30" min="1" onchange="renderHeatmap2()">
+                    <input type="number" id="decayMinutesInput" value="30" min="1" onchange="saveDecaySettingsAndRender()">
                     <button class="decay-btn" onclick="adjustDecay(5)">+</button>
                     <label>mins</label>
+                </div>
+                <div style="font-size:0.7em; color:#aaa; margin-bottom:10px;">
+                    Stay clean in current hour -> Risk drops.
                 </div>
                 <div class="heatmap-grid" id="heatmapGridNew"></div>
                 <div class="heatmap-labels">
@@ -384,7 +387,7 @@
         'use strict';
         
         // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        // هام: استبدل الكود أدناه بالـ Firebase Config الخاص بك
+        // Firebase Config
         // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         const firebaseConfig = { 
             apiKey: "AIzaSyC7K8VY7GHb9BnA2OIpUN__zlm_OZm0kas", 
@@ -677,24 +680,28 @@
         function openHealthModal() { document.getElementById('healthModal').classList.add('active'); updateHealthTimeline(); }
         function openBreathingModal() { document.getElementById('breathingModal').classList.add('active'); startBreathingExercise(); }
         
-        // --- HEATMAP & RECOVERY LOGIC ---
+        // --- AUTO HEATMAP & RECOVERY LOGIC (AUTOMATIC) ---
         let hourlyCountsCached = new Array(24).fill(0);
         
         function openHeatmapModal() {
             document.getElementById('heatmapModal').classList.add('active'); 
             
-            // 1. Calculate Historical Data (Standard Heatmap)
+            // 1. حساب البيانات التاريخية (كم مرة دخنت في هذه الساعة سابقاً)
             hourlyCountsCached = new Array(24).fill(0); 
-            Object.values(smokingData.dailyRecords).forEach(r=>{
+            Object.values(smokingData.dailyRecords).forEach(r => {
                 if(r.periods) r.periods[0].entries.forEach(e => {
                     hourlyCountsCached[new Date(e.timestamp).getHours()]++;
                 });
             });
             
-            // Render Old Chart
+            // استرجاع قيمة الدقائق المحفوظة أو الافتراضية
+            if(smokingData.settings && smokingData.settings.decayRateMinutes) {
+                document.getElementById('decayMinutesInput').value = smokingData.settings.decayRateMinutes;
+            } else {
+                document.getElementById('decayMinutesInput').value = 30;
+            }
+
             renderHeatmap1();
-            
-            // Render New Chart (Recovery)
             renderHeatmap2();
         }
 
@@ -724,6 +731,13 @@
             v += amt;
             if(v < 1) v = 1;
             inp.value = v;
+            saveDecaySettingsAndRender();
+        }
+
+        function saveDecaySettingsAndRender() {
+            if(!smokingData.settings) smokingData.settings = {};
+            smokingData.settings.decayRateMinutes = parseInt(document.getElementById('decayMinutesInput').value);
+            saveSmokingDataToStorage();
             renderHeatmap2();
         }
 
@@ -731,7 +745,18 @@
             const grid = document.getElementById('heatmapGridNew');
             grid.innerHTML = '';
             
-            // 1. Find Time Since Last Cigarette Globally
+            // نأخذ أقصى ارتفاع من البيانات التاريخية لضبط المقياس
+            const max = Math.max(...hourlyCountsCached) || 1; 
+            
+            // 1. تحديد الوقت الحالي والساعة الحالية
+            const now = new Date();
+            const currentHour = now.getHours(); // الساعة الحالية (0 - 23)
+            
+            // 2. إحضار إعدادات التناقص (المؤقت)
+            const decayMinutes = parseInt(document.getElementById('decayMinutesInput').value) || 30;
+            const decayMs = decayMinutes * 60000;
+
+            // 3. تحديد آخر وقت تم التدخين فيه (بشكل عام)
             let lastTimestamp = 0;
             Object.values(smokingData.dailyRecords).forEach(r => {
                 if(r.periods && r.periods[0].entries.length > 0) {
@@ -740,33 +765,63 @@
                 }
             });
 
-            // 2. Calculate Reduction based on User Input
-            let reduceAmount = 0;
-            if(lastTimestamp > 0) {
-                const now = Date.now();
-                const diffMinutes = Math.floor((now - lastTimestamp) / 60000);
-                const decayRate = parseInt(document.getElementById('decayMinutesInput').value) || 30;
-                reduceAmount = Math.floor(diffMinutes / decayRate);
-            }
+            // 4. بناء الرسم البياني (24 عمود)
+            for (let hour = 0; hour < 24; hour++) {
+                const originalVal = hourlyCountsCached[hour]; // القيمة التاريخية (الأساس)
+                let reduction = 0;
 
-            const max = Math.max(...hourlyCountsCached) || 1;
+                // --- المنطق الجديد: التغيير يحدث فقط في الساعة الحالية ---
+                if (hour === currentHour) {
+                    // تحديد بداية الساعة الحالية (مثلاً 4:00:00 بالضبط)
+                    const startOfCurrentHour = new Date(now);
+                    startOfCurrentHour.setHours(hour, 0, 0, 0);
 
-            // 3. Render Modified Bars
-            hourlyCountsCached.forEach(originalVal => {
-                // Calculate new decayed value (min 0)
-                let currentVal = Math.max(0, originalVal - reduceAmount);
-                let diff = originalVal - currentVal;
+                    // نقطة بداية الحساب:
+                    // نبدأ العد من "بداية الساعة" ... إلا إذا دخنت سيجارة "داخل" هذه الساعة
+                    // عندها نبدأ العد من وقت آخر سيجارة
+                    const calculationStart = Math.max(startOfCurrentHour.getTime(), lastTimestamp);
 
+                    // إذا كان الوقت الحالي قد تجاوز نقطة البداية
+                    if (now.getTime() > calculationStart) {
+                        const timePassedMs = now.getTime() - calculationStart;
+                        // كم "فترة زمنية" مرت؟ (مثلاً كم نصف ساعة مرت؟)
+                        reduction = Math.floor(timePassedMs / decayMs);
+                    }
+                }
+                
+                // القيمة النهائية للعمود (لا يمكن أن تكون أقل من صفر)
+                let currentVal = Math.max(0, originalVal - reduction);
+
+                // --- الرسم (DOM) ---
                 const b = document.createElement('div');
                 b.className = 'heatmap-bar';
-                // Height reflects current value to show recovery visual
-                // Or height reflects original, but color changes? 
-                // Request: "8 becomes 7". Let's reduce height.
+                
+                // تحديد الارتفاع بالنسبة المئوية
                 b.style.height = `${(currentVal/max)*100}%`;
-                if(currentVal === 0 && originalVal > 0) b.style.height = '1px'; // Show faint trace
-                if(currentVal === 0 && originalVal === 0) b.style.height = '0%';
+                
+                // التلوين: إذا كان هناك نقص (تعافي) نلون بالأخضر
+                // وإلا نتركه أحمر (خطر)
+                if(reduction > 0) {
+                    b.style.background = "#00e676"; // أخضر
+                } else {
+                    b.style.background = "#ff4444"; // أحمر
+                }
+                
+                // حالة خاصة: إذا كانت القيمة 0 ولكن الأصل كان موجوداً (لنظهر أثراً خفيفاً)
+                if(currentVal === 0 && originalVal > 0) b.style.height = '4px'; 
+                // إذا لم يكن هناك تدخين أصلاً في هذه الساعة تاريخياً
+                if(originalVal === 0) b.style.height = '0%';
 
-                // Top Number (Current Value)
+                // تمييز الساعة الحالية بصرياً
+                if(hour === currentHour) {
+                    b.style.border = "1px solid white";
+                    b.style.opacity = "1";
+                    b.title = "Current Hour";
+                } else {
+                    b.style.opacity = "0.6"; 
+                }
+
+                // الرقم الظاهر فوق العمود (المتبقي)
                 if(currentVal > 0) {
                     const countSpan = document.createElement('span');
                     countSpan.className = 'heatmap-count';
@@ -774,16 +829,17 @@
                     b.appendChild(countSpan);
                 }
 
-                // Inside Number (Difference) e.g. "-1"
-                if(diff > 0 && currentVal > 0) {
+                // الرقم الظاهر تحت العمود (كم نقصنا؟ -1, -2)
+                // يظهر فقط في الساعة الحالية إذا حدث نقص
+                if(reduction > 0) {
                     const diffSpan = document.createElement('div');
                     diffSpan.className = 'heatmap-diff';
-                    diffSpan.innerText = `_${diff}`; // Request said "_1"
+                    diffSpan.innerText = `-${reduction}`; 
                     b.appendChild(diffSpan);
                 }
                 
                 grid.appendChild(b);
-            });
+            }
         }
         // -----------------------------
 
