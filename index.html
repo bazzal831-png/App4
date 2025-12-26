@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Smoking Tracker (Fixed + New Stats)</title>
+    <title>Smoking Tracker (Risk & Recovery)</title>
     
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#262626">
@@ -162,11 +162,22 @@
         .progress-bar-bg { width: 100%; height: 12px; background: #444; border-radius: 6px; overflow: hidden; margin-top: 5px; position: relative; }
         .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #ff4444, #ff9900); width: 0%; transition: width 0.5s ease; }
         
-        /* Heatmap Updates */
-        .heatmap-grid { display: flex; align-items: flex-end; justify-content: space-between; height: 180px; margin-top: 20px; gap: 2px; padding-top: 20px; }
-        .heatmap-bar { background: #ff4444; width: 100%; border-radius: 2px 2px 0 0; position: relative; }
-        .heatmap-count { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); color: #fff; font-size: 0.7em; margin-bottom: 2px; }
-        .heatmap-labels { display: flex; justify-content: space-between; font-size: 0.7em; color: #aaa; margin-top: 5px; }
+        /* Heatmap Styles */
+        .heatmap-container { margin-bottom: 30px; }
+        .heatmap-title { font-size: 1.1em; color: #bbb; margin-bottom: 10px; text-align: left; border-bottom: 1px solid #444; padding-bottom: 5px; }
+        .heatmap-grid { display: flex; align-items: flex-end; justify-content: space-between; height: 150px; gap: 2px; padding-top: 20px; background: #333; border-radius: 4px; padding: 10px; }
+        .heatmap-bar { background: #ff4444; width: 100%; border-radius: 2px 2px 0 0; position: relative; transition: height 0.3s; }
+        .heatmap-count { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); color: #fff; font-size: 0.7em; margin-bottom: 2px; font-weight: bold; }
+        .heatmap-diff { position: absolute; top: 4px; left: 0; width: 100%; text-align: center; color: rgba(255,255,255,0.8); font-size: 0.6em; }
+        
+        .heatmap-labels { display: flex; justify-content: space-between; font-size: 0.7em; color: #aaa; margin-top: 5px; padding: 0 5px; }
+        .heatmap-labels span { flex: 1; text-align: center; }
+
+        .decay-controls { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 10px; background: #333; padding: 8px; border-radius: 5px; }
+        .decay-controls label { font-size: 0.9em; color: #ccc; }
+        .decay-controls input { width: 50px; padding: 5px; text-align: center; background: #444; color: white; border: 1px solid #555; border-radius: 3px; }
+        .decay-btn { background: #555; color: white; border: none; width: 30px; height: 30px; border-radius: 3px; cursor: pointer; font-weight: bold; font-size: 1.1em; }
+        .decay-btn:active { background: #777; }
 
         @media (max-width: 768px) { .tracker-container { width: 95%; overflow-x: auto; } .calendar-container { width: 95%; padding: 15px; } }
     </style>
@@ -297,7 +308,41 @@
     
     <div id="breathingModal" class="modal-overlay"><div class="modal-content"><button class="close-modal" onclick="closeModal('breathingModal')">×</button><h3>Calm Down</h3><div class="circle-container" id="breathingContainer"><div class="breathing-circle"></div><div class="breathing-text" id="breathingText">Ready?</div></div></div></div>
     
-    <div id="heatmapModal" class="modal-overlay"><div class="modal-content"><button class="close-modal" onclick="closeModal('heatmapModal')">×</button><h3>Risk Times (All Time)</h3><div class="heatmap-grid" id="heatmapGrid"></div><div class="heatmap-labels"><span>12AM</span><span>6AM</span><span>12PM</span><span>6PM</span><span>11PM</span></div></div></div>
+    <!-- MODIFIED HEATMAP MODAL -->
+    <div id="heatmapModal" class="modal-overlay">
+        <div class="modal-content">
+            <button class="close-modal" onclick="closeModal('heatmapModal')">×</button>
+            <h3>Risk Times & Recovery</h3>
+            
+            <!-- Old Chart (Historical) -->
+            <div class="heatmap-container">
+                <div class="heatmap-title">Historical Intensity</div>
+                <div class="heatmap-grid" id="heatmapGridOld"></div>
+                <div class="heatmap-labels">
+                    <span>12AM</span><span>3AM</span><span>6AM</span><span>9AM</span>
+                    <span>12PM</span><span>3PM</span><span>6PM</span><span>9PM</span>
+                </div>
+            </div>
+
+            <!-- New Chart (Recovery) -->
+            <div class="heatmap-container">
+                <div class="heatmap-title">Current Risk Level (Decay)</div>
+                <div class="decay-controls">
+                    <label>Reduce 1 cig every:</label>
+                    <button class="decay-btn" onclick="adjustDecay(-5)">-</button>
+                    <input type="number" id="decayMinutesInput" value="30" min="1" onchange="renderHeatmap2()">
+                    <button class="decay-btn" onclick="adjustDecay(5)">+</button>
+                    <label>mins</label>
+                </div>
+                <div class="heatmap-grid" id="heatmapGridNew"></div>
+                <div class="heatmap-labels">
+                    <span>12AM</span><span>3AM</span><span>6AM</span><span>9AM</span>
+                    <span>12PM</span><span>3PM</span><span>6PM</span><span>9PM</span>
+                </div>
+            </div>
+
+        </div>
+    </div>
 
     <div id="detoxModal" class="modal-overlay">
         <div class="modal-content">
@@ -319,7 +364,6 @@
                     <div class="detox-stat-item"><div class="detox-stat-title">Avoided</div><div class="detox-stat-val" id="detoxAvoidedToday" style="color:#00e676;">0</div></div>
                     <div class="detox-stat-item"><div class="detox-stat-title">Reduction</div><div class="detox-stat-val" id="detoxReductionPercent">0%</div></div>
                     
-                    <!-- New Weekly Cost Item -->
                     <div class="detox-stat-item" id="detoxCostItem" style="margin-top:15px; border-top:1px solid #444; padding-top:10px;">
                         <div class="detox-stat-title" id="detoxCostTitle">Daily Cost</div>
                         <div class="detox-stat-val" id="detoxCostVal" style="color:#ffc107;">$0.00</div>
@@ -479,7 +523,6 @@
             if(isMoney) updateFinancialChart(); else updateDetoxStats();
         }
 
-        /* --- UPDATED DETOX STATS WITH WEEKLY COST --- */
         function updateDetoxStats() {
             const baselineDay = smokingData.settings.historyBaseline || 1;
             let actual = 0, baseline = 0;
@@ -494,7 +537,6 @@
                 actual = (rec && rec.periods[0]) ? rec.periods[0].entries.length : 0;
                 baseline = (rec && rec.limit > 0) ? rec.limit : baselineDay;
                 
-                // Cost Update
                 document.getElementById('detoxCostTitle').textContent = "Daily Cost (Burnt)";
                 document.getElementById('detoxCostVal').textContent = '$' + (actual * costPerCig).toFixed(2);
             } else {
@@ -518,7 +560,6 @@
                 }
                 if(baseline === 0) baseline = 1; 
 
-                // Cost Update (Weekly)
                 document.getElementById('detoxCostTitle').textContent = "Weekly Cost (Burnt)";
                 document.getElementById('detoxCostVal').textContent = '$' + (actual * costPerCig).toFixed(2);
             }
@@ -618,7 +659,6 @@
             updateLogCigaretteButtonState();
         }
 
-        /* --- FIXED DELETE LOGIC --- */
         function deleteEntry(id) {
             if (confirm("Delete this entry?")) {
                 const p = smokingData.dailyRecords[selectedDate].periods[0];
@@ -633,43 +673,119 @@
                 refreshUI();
             }
         }
-        /* -------------------------- */
 
         function openHealthModal() { document.getElementById('healthModal').classList.add('active'); updateHealthTimeline(); }
         function openBreathingModal() { document.getElementById('breathingModal').classList.add('active'); startBreathingExercise(); }
         
-        /* --- UPDATED HEATMAP WITH COUNTS --- */
+        // --- HEATMAP & RECOVERY LOGIC ---
+        let hourlyCountsCached = new Array(24).fill(0);
+        
         function openHeatmapModal() {
             document.getElementById('heatmapModal').classList.add('active'); 
-            const grid=document.getElementById('heatmapGrid'); 
-            grid.innerHTML='';
             
-            const h=new Array(24).fill(0); 
+            // 1. Calculate Historical Data (Standard Heatmap)
+            hourlyCountsCached = new Array(24).fill(0); 
             Object.values(smokingData.dailyRecords).forEach(r=>{
                 if(r.periods) r.periods[0].entries.forEach(e => {
-                    h[new Date(e.timestamp).getHours()]++;
+                    hourlyCountsCached[new Date(e.timestamp).getHours()]++;
                 });
             });
             
-            const m=Math.max(...h)||1; 
+            // Render Old Chart
+            renderHeatmap1();
             
-            h.forEach(v => {
-                const b=document.createElement('div'); 
-                b.className='heatmap-bar'; 
-                b.style.height=`${(v/m)*100}%`; 
+            // Render New Chart (Recovery)
+            renderHeatmap2();
+        }
+
+        function renderHeatmap1() {
+            const grid = document.getElementById('heatmapGridOld');
+            grid.innerHTML = '';
+            const max = Math.max(...hourlyCountsCached) || 1;
+            
+            hourlyCountsCached.forEach(v => {
+                const b = document.createElement('div');
+                b.className = 'heatmap-bar';
+                b.style.height = `${(v/max)*100}%`;
                 
-                // Add count number if > 0
                 if(v > 0) {
                     const countSpan = document.createElement('span');
                     countSpan.className = 'heatmap-count';
                     countSpan.innerText = v;
                     b.appendChild(countSpan);
                 }
+                grid.appendChild(b);
+            });
+        }
+
+        function adjustDecay(amt) {
+            const inp = document.getElementById('decayMinutesInput');
+            let v = parseInt(inp.value) || 30;
+            v += amt;
+            if(v < 1) v = 1;
+            inp.value = v;
+            renderHeatmap2();
+        }
+
+        function renderHeatmap2() {
+            const grid = document.getElementById('heatmapGridNew');
+            grid.innerHTML = '';
+            
+            // 1. Find Time Since Last Cigarette Globally
+            let lastTimestamp = 0;
+            Object.values(smokingData.dailyRecords).forEach(r => {
+                if(r.periods && r.periods[0].entries.length > 0) {
+                    const lastInDay = r.periods[0].entries[r.periods[0].entries.length - 1].timestamp;
+                    if(lastInDay > lastTimestamp) lastTimestamp = lastInDay;
+                }
+            });
+
+            // 2. Calculate Reduction based on User Input
+            let reduceAmount = 0;
+            if(lastTimestamp > 0) {
+                const now = Date.now();
+                const diffMinutes = Math.floor((now - lastTimestamp) / 60000);
+                const decayRate = parseInt(document.getElementById('decayMinutesInput').value) || 30;
+                reduceAmount = Math.floor(diffMinutes / decayRate);
+            }
+
+            const max = Math.max(...hourlyCountsCached) || 1;
+
+            // 3. Render Modified Bars
+            hourlyCountsCached.forEach(originalVal => {
+                // Calculate new decayed value (min 0)
+                let currentVal = Math.max(0, originalVal - reduceAmount);
+                let diff = originalVal - currentVal;
+
+                const b = document.createElement('div');
+                b.className = 'heatmap-bar';
+                // Height reflects current value to show recovery visual
+                // Or height reflects original, but color changes? 
+                // Request: "8 becomes 7". Let's reduce height.
+                b.style.height = `${(currentVal/max)*100}%`;
+                if(currentVal === 0 && originalVal > 0) b.style.height = '1px'; // Show faint trace
+                if(currentVal === 0 && originalVal === 0) b.style.height = '0%';
+
+                // Top Number (Current Value)
+                if(currentVal > 0) {
+                    const countSpan = document.createElement('span');
+                    countSpan.className = 'heatmap-count';
+                    countSpan.innerText = currentVal;
+                    b.appendChild(countSpan);
+                }
+
+                // Inside Number (Difference) e.g. "-1"
+                if(diff > 0 && currentVal > 0) {
+                    const diffSpan = document.createElement('div');
+                    diffSpan.className = 'heatmap-diff';
+                    diffSpan.innerText = `_${diff}`; // Request said "_1"
+                    b.appendChild(diffSpan);
+                }
                 
                 grid.appendChild(b);
             });
         }
-        /* ----------------------------------- */
+        // -----------------------------
 
         function closeModal(id) { document.getElementById(id).classList.remove('active'); if(id==='breathingModal') clearInterval(breatheInt); }
         function updateHealthTimeline() {
@@ -747,7 +863,6 @@
             updateLogCigaretteButtonState();
         }
 
-        /* --- FIXED TIMER LOGIC --- */
         function updateLogCigaretteButtonState() {
             const b1 = document.getElementById('logCigaretteTodayButton');
             const b2 = document.querySelector('.log-btn');
@@ -772,7 +887,6 @@
 
             const s = getS(tStr);
             
-            // Calendar Button
             if(b1) {
                 if (s.l === 0) {
                     clearInterval(b1.int);
@@ -783,7 +897,6 @@
                 }
             }
 
-            // Tracker Button
             if(b2 && selectedDate) {
                 const todayFormatted = `${n.getFullYear()}-${(n.getMonth()+1).toString().padStart(2,'0')}-${n.getDate().toString().padStart(2,'0')}`;
                 if(selectedDate === todayFormatted) {
@@ -801,7 +914,6 @@
                 }
             }
         }
-        /* ------------------------- */
 
         function runTimer(b, t, c, l, isCal) {
             clearInterval(b.int);
