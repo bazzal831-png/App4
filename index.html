@@ -84,9 +84,12 @@
         .money-val { font-size: 1.1em; font-weight: bold; color: #ffc107; font-family: monospace; }
         
         .wishlist-container { margin-top: 15px; background: #2a2a2a; padding: 10px; border-radius: 5px; border: 1px solid #444; }
-        .wishlist-add-form { display: flex; gap: 5px; margin-bottom: 10px; }
-        .wishlist-add-form input { flex: 1; padding: 8px; background: #444; border: 1px solid #555; color: white; border-radius: 4px; }
-        .wishlist-add-btn { background: #00e676; border: none; color: white; padding: 0 15px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        
+        /* EDITED: Compact form */
+        .wishlist-add-form { display: flex; gap: 3px; margin-bottom: 10px; }
+        .wishlist-add-form input { flex: 1; padding: 6px; background: #444; border: 1px solid #555; color: white; border-radius: 4px; font-size: 0.9em; min-width: 0; }
+        .wishlist-add-btn { background: #00e676; border: none; color: white; padding: 0 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 1.1em;}
+        
         .wishlist-item { background: #333; padding: 10px; border-radius: 5px; margin-bottom: 8px; position: relative; border-left: 3px solid #555; }
         .wishlist-item.completed { border-left-color: #00e676; }
         .wishlist-meta { display: flex; justify-content: space-between; font-size: 0.9em; margin-bottom: 5px; color: white; }
@@ -307,7 +310,6 @@
             <button class="close-modal" onclick="closeModal('heatmapModal')">×</button>
             <h3>Risk Times & Recovery</h3>
             
-            <!-- Old Chart (Historical) - KEPT -->
             <div class="heatmap-container">
                 <div class="heatmap-title">Historical Intensity</div>
                 <div class="heatmap-grid" id="heatmapGridOld"></div>
@@ -316,9 +318,6 @@
                     <span>12PM</span><span>3PM</span><span>6PM</span><span>9PM</span>
                 </div>
             </div>
-
-            <!-- New Chart (Recovery Auto) - REMOVED AS REQUESTED -->
-
         </div>
     </div>
 
@@ -326,10 +325,10 @@
         <div class="modal-content">
             <button class="close-modal" onclick="closeModal('detoxModal')">×</button>
             <h3>Monitor</h3>
+            <!-- EDITED: REMOVED MONEY TAB -->
             <div class="detox-tabs">
                 <button class="detox-tab active" id="tabDaily" onclick="switchDetoxTab('daily')">Daily</button>
                 <button class="detox-tab" id="tabWeekly" onclick="switchDetoxTab('weekly')">Weekly</button>
-                <button class="detox-tab" id="tabMoney" onclick="switchDetoxTab('money')">Money</button>
             </div>
             
             <div id="detoxStatsView">
@@ -347,12 +346,6 @@
                         <div class="detox-stat-val" id="detoxCostVal" style="color:#ffc107;">$0.00</div>
                     </div>
                 </div>
-            </div>
-
-            <div id="detoxMoneyView" class="hidden">
-                <p style="font-size:0.9em; color:#aaa;">Monthly Savings ($)</p>
-                <!-- Chart Removed as Requested -->
-                <div style="padding: 20px; color: #777;">Graph Disabled</div>
             </div>
         </div>
     </div>
@@ -493,15 +486,12 @@
         
         function switchDetoxTab(tab) {
             currentDetoxTab = tab;
-            ['Daily','Weekly','Money'].forEach(t => document.getElementById('tab'+t).className = (t.toLowerCase()===tab)?'detox-tab active':'detox-tab');
-            const isMoney = tab === 'money';
-            document.getElementById('detoxStatsView').className = isMoney ? 'hidden' : '';
-            document.getElementById('detoxMoneyView').className = isMoney ? '' : 'hidden';
-            if(isMoney) {
-                // updateFinancialChart() removed
-            } else {
-                updateDetoxStats();
-            }
+            // EDITED: Loop only daily and weekly
+            ['Daily','Weekly'].forEach(t => {
+                const el = document.getElementById('tab'+t);
+                if(el) el.className = (t.toLowerCase()===tab)?'detox-tab active':'detox-tab';
+            });
+            updateDetoxStats();
         }
 
         function updateDetoxStats() {
@@ -647,7 +637,6 @@
             });
             
             renderHeatmap1();
-            // renderHeatmap2() removed as requested
         }
 
         function renderHeatmap1() {
