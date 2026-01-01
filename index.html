@@ -3,835 +3,1938 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Smoking Tracker (Auto Risk & Recovery)</title>
-    
-    <link rel="manifest" href="./manifest.json">
-    <meta name="theme-color" content="#262626">
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3665/3665924.png">
-
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
+    <title>SUNG JIN-WOO SYSTEM | V6.2 FIXED</title>
     <style>
-        /* --- CORE STYLES --- */
-        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; background-color: #f4f4f4; margin: 0; padding-top: 20px; overflow-x: hidden; overflow-y: auto; }
-        #offline-indicator { display: none; width: 100%; background-color: #dc3545; color: white; text-align: center; padding: 10px; position: fixed; top: 0; z-index: 9999; font-weight: bold; }
-        
-        #loginScreen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #262626; z-index: 2000; display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; }
-        #loginBtn { padding: 15px 30px; font-size: 1.2em; background: #4285F4; color: white; border: none; border-radius: 5px; cursor: pointer; display: flex; align-items: center; gap: 10px; }
-        #userInfo { position: absolute; top: 10px; right: 10px; font-size: 0.8em; color: #555; display: flex; align-items: center; gap: 10px; }
-        #logoutBtn { background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; }
-        
-        /* Calendar */
-        .calendar-container { background-color: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); padding: 20px; width: 300px; margin: 40px auto 20px; display: flex; flex-direction: column; align-items: center; }
-        .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; width: 100%; }
-        .calendar-header button { background: #eee; border: none; cursor: pointer; font-size: 1.5em; padding: 5px 15px; border-radius: 5px; }
-        .calendar-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 5px; color: #777; width: 100%; }
-        .calendar-weekdays div { text-align: center; padding: 8px 0; font-size: 0.9em; }
-        .calendar-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; width: 100%; }
-        .calendar-days a { position: relative; display: block; text-decoration: none; color: inherit; width: 100%; padding: 5px 0; border-radius: 5px; text-align: center; cursor: pointer; transition: background-color 0.3s ease; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; min-height: 40px; }
-        .calendar-days a.today { background-color: #007bff; color: white; }
-        .daily-count-on-calendar { color: green; }
-        .calendar-days a.today .daily-count-on-calendar { color: white; }
-        .calendar-controls { margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; width: 100%; }
-        .calendar-controls button { padding: 8px 16px; border-radius: 5px; cursor: pointer; transition: background-color 0.3s ease; background: #007bff; color: white; border: none; }
-        
-        /* Big Button Styles */
-        #logCigaretteTodayButton, .controls button.log-btn { 
-            background-color: #ff4444; 
-            color: white; 
-            border: none; 
-            border-radius: 25px; 
-            cursor: pointer; 
-            width: 100%; 
-            max-width: 300px; 
-            padding: 15px 20px; 
-            font-size: 1.1em; 
-            font-weight: bold;
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            flex-wrap: wrap;
-            margin-top: 10px;
+        :root {
+            --bg: #05070b; --panel: rgba(17, 20, 29, 0.95); 
+            --mana: #00d2ff; --debt-color: #bc13fe; 
+            --hp-bg: #4a0000; --hp-fill: #ff0000;   
+            --rank-ss: #ffcc00; --rank-s: #ff3131; --rank-a: #bc13fe;
+            --rank-b: #00d2ff; --rank-c: #4caf50; --rank-e: #9e9e9e;
+            --gold: #ffd700; --danger: #ff3131; --text: #e6edf3; --success: #50fa7b;
         }
-        /* State Colors */
-        button[data-status="allowed"] { background-color: #00e676 !important; color: #2e3b4d !important; }
-        button[data-status="cooldown"] { background-color: #ffa500 !important; color: white !important; }
-        button[data-status="normal"] { background-color: #4285F4 !important; color: white !important; }
-        
-        .elapsed-counter, .cooldown-timer-display { margin-left: 8px; font-weight: normal; background-color: rgba(0,0,0,0.2); padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
-        #resetDataButton { background-color: #dc3545; }
-        
-        /* Tracker Main */
-        .tracker-container { background: #262626; color: #e0e0e0; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); padding: 20px; width: 800px; margin: 40px auto 20px; overflow-x: visible; overflow-y: auto; }
-        .tracker-container h1 { text-align: center; margin-top: 0; }
-        .tracker-container button.back-button { background: #6c757d; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; margin-bottom: 15px; }
-        .daily-box { background: #333; padding: 15px; border-radius: 6px; text-align: center; margin-bottom: 20px; position: relative; }
-        .stat-value { font-size: 1.8em; color: #00e676; font-family: monospace; }
-        
-        /* Living Tree */
-        .living-tree-icon { position: absolute; top: 10px; right: 10px; font-size: 2.5em; }
-        .tree-green { filter: drop-shadow(0 0 5px #00e676); }
-        .tree-yellow { filter: sepia(100%) hue-rotate(20deg) saturate(500%); } 
-        .tree-red { filter: grayscale(100%) brightness(0.7) drop-shadow(0 0 5px red); }
 
-        /* Wishlist & Money */
-        .money-display { display: flex; justify-content: space-around; margin-top: 15px; background: #222; padding: 10px; border-radius: 5px; }
-        .money-val { font-size: 1.1em; font-weight: bold; color: #ffc107; font-family: monospace; }
-        
-        .wishlist-container { margin-top: 15px; background: #2a2a2a; padding: 10px; border-radius: 5px; border: 1px solid #444; }
-        
-        /* EDITED: Compact form */
-        .wishlist-add-form { display: flex; gap: 3px; margin-bottom: 10px; }
-        .wishlist-add-form input { flex: 1; padding: 6px; background: #444; border: 1px solid #555; color: white; border-radius: 4px; font-size: 0.9em; min-width: 0; }
-        .wishlist-add-btn { background: #00e676; border: none; color: white; padding: 0 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 1.1em;}
-        
-        .wishlist-item { background: #333; padding: 10px; border-radius: 5px; margin-bottom: 8px; position: relative; border-left: 3px solid #555; }
-        .wishlist-item.completed { border-left-color: #00e676; }
-        .wishlist-meta { display: flex; justify-content: space-between; font-size: 0.9em; margin-bottom: 5px; color: white; }
-        .wishlist-bar-bg { width: 100%; height: 8px; background: #555; border-radius: 4px; overflow: hidden; }
-        .wishlist-bar-fill { height: 100%; background: linear-gradient(90deg, #9c27b0, #e91e63); width: 0%; transition: width 0.5s; }
-        
-        .wishlist-delete { background: #ff4444; color: white; border: none; border-radius: 3px; padding: 2px 8px; cursor: pointer; font-size: 0.8em; margin-left: 10px; }
+        body { 
+            background-color: var(--bg); color: var(--text); 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 10px; 
+            background-image: radial-gradient(circle at center, #101525 0%, #05070b 100%);
+            -webkit-tap-highlight-color: transparent; padding-bottom: 90px;
+        }
 
-        /* Table & Flags */
-        .data-table { width: 100%; border-collapse: collapse; margin-top: 20px; table-layout: fixed; }
-        .data-table th, .data-table td { padding: 8px; border-bottom: 1px solid #555; text-align: left; font-size: 0.85em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .data-table th:nth-child(1) { width: 25%; } 
-        .data-table th:nth-child(2) { width: 20%; } 
-        .data-table th:nth-child(3) { width: 35%; } 
-        .data-table th:nth-child(4) { width: 20%; } 
+        /* HEADER & WEATHER */
+        .system-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 15px; padding: 5px; border-bottom: 1px solid #333;
+        }
+        .weather-widget {
+            font-family: monospace; font-size: 0.7rem; color: var(--mana);
+            display: flex; flex-direction: column;
+        }
+        .weather-loc { font-weight: bold; letter-spacing: 1px; text-transform: uppercase; }
+        .weather-det { color: #888; font-size: 0.6rem; margin-top: 2px; transition: color 0.3s; }
         
-        .flagged-row { background-color: rgba(220, 53, 69, 0.15) !important; }
-        .flagged-row td { color: #ff9999 !important; }
+        .settings-icon {
+            font-size: 1.2rem; cursor: pointer; transition: 0.3s;
+            color: #666; padding: 5px;
+        }
+        .settings-icon:hover { color: var(--text); transform: rotate(90deg); }
 
-        .delete-btn { background: #ff4444; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; }
+        /* CARDS */
+        .master-card, .gold-vault-card {
+            background: linear-gradient(180deg, rgba(17, 20, 29, 0.95) 0%, rgba(5, 7, 11, 0.95) 100%);
+            border: 1px solid var(--mana); border-radius: 8px; padding: 0;
+            margin-bottom: 20px; position: relative; overflow: hidden;
+            box-shadow: 0 0 15px rgba(0, 210, 255, 0.05);
+        }
+        .gold-vault-card { border-color: var(--gold); box-shadow: 0 0 15px rgba(255, 215, 0, 0.05); }
 
-        /* Controls */
-        .controls { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; align-items: center; }
-        .trigger-section { width: 100%; max-width: 300px; display: flex; flex-direction: column; gap: 8px; }
-        #triggerSelect, #customTriggerInput { padding: 12px; border-radius: 5px; background: #444; color: white; border: 1px solid #555; width: 100%; }
-        .hidden { display: none !important; }
+        /* PORTFOLIO & GENERAL */
+        .portfolio-summary {
+            padding: 15px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1);
+            background: rgba(0,0,0,0.2);
+        }
+        .portfolio-label { font-size: 0.6rem; color: #888; letter-spacing: 1px; margin-bottom: 5px; }
+        .portfolio-total { font-size: 1.8rem; font-family: monospace; color: white; font-weight: bold; }
+        .portfolio-spent { font-size: 0.8rem; color: #aaa; font-family: monospace; margin-top: 5px; }
+        .portfolio-profit { font-size: 0.9rem; font-family: monospace; margin-top: 5px; font-weight: bold; padding: 2px 8px; border-radius: 4px; display: inline-block; }
+        .profit-plus { color: var(--success); background: rgba(80, 250, 123, 0.1); }
+        .profit-minus { color: var(--danger); background: rgba(255, 49, 49, 0.1); }
 
-        /* Settings */
-        .money-settings { display: flex; justify-content: center; gap: 10px; margin-top: 15px; flex-wrap: wrap; }
-        .money-settings input { width: 70px; padding: 5px; background: #444; color: white; border: 1px solid #555; text-align: center; border-radius: 4px; }
-        .limit-section { margin-top: 15px; display: flex; justify-content: center; gap: 10px; }
-        .limit-section input { width: 60px; padding: 5px; background: #444; color: white; border: 1px solid #ccc; text-align: center; border-radius: 4px; }
-        .limit-section button { padding: 5px 10px; border-radius: 4px; cursor: pointer; background: #28a745; color: white; border: none; }
-
-        /* Chart */
-        .chart-filter-controls { display: flex; justify-content: center; gap: 10px; margin-bottom: 10px; margin-top: 20px; }
-        .chart-filter-controls select { padding: 8px; background: #444; color: #e0e0e0; border: 1px solid #555; border-radius: 5px; }
-        .tracker-chart-container { background: #333; padding: 15px; height: 300px; margin-top: 20px; }
-
-        /* Extras */
-        .extra-controls { display: flex; gap: 15px; margin-top: 15px; justify-content: center; width: 100%; flex-wrap: wrap; }
-        .extra-btn { background: transparent; border: 2px solid #555; color: #e0e0e0; font-size: 1.5em; padding: 10px 15px; border-radius: 10px; cursor: pointer; transition: all 0.3s; width: 70px; text-align: center; }
-        .extra-btn:hover { background: #444; border-color: #00e676; }
+        .gold-tabs { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3); }
+        .g-tab { 
+            color: #666; padding: 8px 0; 
+            text-align: center; font-size: 0.65rem; font-weight: bold; cursor: pointer; 
+            border-right: 1px solid rgba(255,255,255,0.05); transition: 0.2s;
+        }
+        .g-tab.active { background: rgba(255, 215, 0, 0.15); color: var(--gold); text-shadow: 0 0 5px var(--gold); }
         
-        /* Notes & Tasks */
-        .note-section textarea { width: 100%; height: 100px; background: #444; color: #e0e0e0; border: 1px solid #555; padding: 10px; }
-        .note-section button, .task-add-form button { padding: 8px 16px; border-radius: 4px; cursor: pointer; background: #28a745; color: white; border: none; margin-top: 5px; }
-        #taskList { list-style: none; padding: 0; }
-        #taskList li { display: flex; align-items: center; padding: 8px 5px; border-bottom: 1px solid #444; gap: 10px; }
-        .task-add-form input { flex-grow: 1; padding: 8px; background: #444; color: #e0e0e0; border: 1px solid #555; }
+        .gold-main-display { text-align: center; padding: 15px 10px; }
+        .gold-grams-display { font-size: 1.5rem; font-family: monospace; color: white; font-weight: bold; }
+        .gold-val-display { font-size: 0.8rem; color: #888; font-family: monospace; margin-top: 5px; }
 
-        /* Modals */
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.9); z-index: 5000; display: flex; justify-content: center; align-items: center; visibility: hidden; opacity: 0; transition: opacity 0.3s; }
-        .modal-overlay.active { visibility: visible; opacity: 1; }
-        .modal-content { background: #262626; padding: 20px; border-radius: 10px; width: 95%; max-width: 450px; color: white; text-align: center; position: relative; max-height: 85vh; overflow-y: auto; }
-        .close-modal { position: absolute; top: 10px; right: 15px; font-size: 1.5em; cursor: pointer; color: #aaa; background: none; border: none; }
-        
-        .health-list { list-style: none; padding: 0; text-align: left; }
-        .health-list li { margin-bottom: 12px; padding: 10px; background: #333; border-radius: 5px; border-left: 4px solid #555; display: flex; align-items: center; gap: 10px; opacity: 0.6; }
-        .health-list li.achieved { border-left-color: #00e676; opacity: 1; background: #2a3a2a; }
-        .check-icon { font-size: 1.2em; }
-        
-        .circle-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 300px; }
-        .breathing-circle { width: 100px; height: 100px; background: #4285F4; border-radius: 50%; opacity: 0.8; transform: scale(1); box-shadow: 0 0 20px rgba(66, 133, 244, 0.5); }
-        .breathing-active .breathing-circle { animation: breathe 19s infinite ease-in-out; } 
-        @keyframes breathe { 0% { transform: scale(1); } 20% { transform: scale(2.5); } 55% { transform: scale(2.5); } 100% { transform: scale(1); } }
+        .dca-stats { display: flex; justify-content: center; gap: 15px; margin-top: 10px; font-family: monospace; font-size: 0.7rem; }
+        .dca-item { display: flex; flex-direction: column; align-items: center; }
+        .dca-lbl { color: #666; font-size: 0.6rem; margin-bottom: 2px; }
+        .dca-val { color: #ccc; font-weight: bold; }
 
-        .detox-tabs { display: flex; justify-content: center; margin-bottom: 15px; background: #333; border-radius: 5px; padding: 5px; gap:5px; }
-        .detox-tab { flex: 1; padding: 8px; background: transparent; border: none; color: #aaa; cursor: pointer; }
-        .detox-tab.active { background: #555; color: white; border-radius: 4px; font-weight: bold; }
-        .detox-inputs { display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; background: #333; padding: 10px; border-radius: 5px; }
-        .detox-stats { text-align: left; }
-        .progress-bar-bg { width: 100%; height: 12px; background: #444; border-radius: 6px; overflow: hidden; margin-top: 5px; position: relative; }
-        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #ff4444, #ff9900); width: 0%; transition: width 0.5s ease; }
-        
-        /* Heatmap Styles */
-        .heatmap-container { margin-bottom: 30px; }
-        .heatmap-title { font-size: 1.1em; color: #bbb; margin-bottom: 10px; text-align: left; border-bottom: 1px solid #444; padding-bottom: 5px; }
-        .heatmap-grid { display: flex; align-items: flex-end; justify-content: space-between; height: 150px; gap: 2px; padding-top: 20px; background: #333; border-radius: 4px; padding: 10px; }
-        .heatmap-bar { background: #ff4444; width: 100%; border-radius: 2px 2px 0 0; position: relative; transition: height 0.3s; }
-        .heatmap-count { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); color: #fff; font-size: 0.7em; margin-bottom: 2px; font-weight: bold; }
-        
-        .heatmap-labels { display: flex; justify-content: space-between; font-size: 0.7em; color: #aaa; margin-top: 25px; padding: 0 5px; }
-        .heatmap-labels span { flex: 1; text-align: center; }
+        .master-top-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 12px 15px; background: rgba(0, 210, 255, 0.05);
+            border-bottom: 1px solid rgba(0, 210, 255, 0.1);
+        }
 
-        @media (max-width: 768px) { .tracker-container { width: 95%; overflow-x: auto; } .calendar-container { width: 95%; padding: 15px; } }
+        .master-main-val { text-align: center; padding: 20px 10px; }
+        .master-grid { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid rgba(255, 255, 255, 0.1); }
+        .m-col { padding: 15px; text-align: center; position: relative; }
+        .m-col:first-child { border-right: 1px solid rgba(255, 255, 255, 0.1); }
+
+        .lbl-sm { font-size: 0.6rem; color: #888; letter-spacing: 1px; margin-bottom: 4px; display: block; }
+        .val-lg { font-size: 1.1rem; font-family: monospace; font-weight: bold; color: white; }
+        .val-usd-sub { font-size: 0.75rem; color: #666; font-family: monospace; margin-top: 2px; }
+
+        .net-gold { font-size: 2.8rem; font-weight: bold; color: var(--mana); font-family: monospace; text-shadow: 0 0 20px rgba(0, 210, 255, 0.15); margin: 5px 0; display: block;}
+        .net-usd { font-size: 1.1rem; color: var(--success); font-weight: bold; background: rgba(80, 250, 123, 0.1); padding: 2px 10px; border-radius: 10px; }
+        .net-assets-row { font-size: 0.75rem; color: #aaa; margin-top: 10px; font-family: monospace; }
+
+        /* MODAL STYLES - FIXED FOR KEYBOARD */
+        .modal-backdrop {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 10000;
+            display: none; justify-content: center; align-items: flex-start;
+            padding-top: 40px;
+        }
+        .modal-window {
+            background: var(--panel); border: 1px solid var(--mana);
+            width: 90%; max-width: 350px; padding: 20px; text-align: center;
+            box-shadow: 0 0 20px rgba(0, 210, 255, 0.15);
+            max-height: 85vh; overflow-y: auto;
+        }
+        .modal-title { color: var(--mana); font-weight: bold; margin-bottom: 15px; letter-spacing: 2px; border-bottom: 1px solid rgba(0, 210, 255, 0.3); padding-bottom: 10px; }
+        
+        .source-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 15px 0; }
+        .source-btn { 
+            border: 1px solid #333; background: rgba(0,0,0,0.5); padding: 10px; 
+            cursor: pointer; transition: 0.2s; border-radius: 4px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .source-btn.active { 
+            border: 1px solid var(--mana); background: rgba(0, 210, 255, 0.15); 
+            box-shadow: 0 0 10px rgba(0, 210, 255, 0.2); transform: scale(1.02);
+        }
+        .src-label { font-size: 0.7rem; font-weight: bold; display: block; margin-bottom: 5px; }
+        .src-val { font-size: 1rem; font-family: monospace; color: #aaa; font-weight: bold; }
+        .src-sub-usd { font-size: 0.7rem; color: #666; font-family: monospace; margin-top: 2px; }
+        .active .src-val { color: white; }
+        
+        .modal-input { 
+            background: #000; border: 1px solid #444; color: white; 
+            padding: 12px; width: 100%; box-sizing: border-box; 
+            font-size: 1rem; text-align: center; margin-bottom: 15px;
+        }
+        select.modal-input { appearance: none; -webkit-appearance: none; color: var(--mana); font-weight:bold; }
+
+        .modal-actions { display: flex; gap: 10px; }
+        .modal-btn { flex: 1; padding: 12px; border: none; font-weight: bold; cursor: pointer; text-transform: uppercase; font-size: 0.8rem; }
+        .btn-confirm { background: var(--mana); color: black; }
+        .btn-cancel { background: #333; color: white; }
+
+        /* SETTINGS SPECIFIC */
+        .settings-section { margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 10px; }
+        .settings-label { font-size: 0.6rem; color: #888; text-align: left; margin-bottom: 5px; display:block; font-weight:bold;}
+        .file-btn { background: #222; border: 1px dashed #666; color: #ccc; padding: 10px; width: 100%; cursor: pointer; font-size: 0.7rem; margin-bottom: 10px; }
+        .file-btn:hover { border-color: var(--mana); color: white; }
+        
+        .recurring-item { display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #333; font-size: 0.75rem; color: #ccc; }
+        .btn-del-rec { background: none; border: none; color: var(--danger); font-weight: bold; cursor: pointer; }
+
+        /* GRAPH STYLES */
+        .graph-container {
+            width: 100%; height: 150px; background: rgba(0,0,0,0.3); border: 1px solid #333;
+            margin-bottom: 15px; position: relative; overflow: hidden;
+        }
+        svg { width: 100%; height: 100%; }
+        polyline { fill: none; stroke: var(--mana); stroke-width: 2; vector-effect: non-scaling-stroke; }
+        circle.graph-point { fill: #000; stroke: var(--mana); stroke-width: 2; cursor: pointer; transition: 0.2s; }
+        circle.graph-point:hover { r: 6; fill: var(--mana); }
+        .graph-tooltip { 
+            position: absolute; background: rgba(0,0,0,0.9); color: white; 
+            padding: 3px 6px; font-size: 0.6rem; border: 1px solid var(--mana);
+            pointer-events: none; display: none; border-radius: 4px; z-index: 10;
+        }
+
+        /* CUSTOM RANK INPUTS */
+        .rank-config-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+        .rank-badge-sm { width: 30px; font-weight: bold; font-size: 0.8rem; text-align: center; }
+        .rank-input { width: 150px !important; padding: 5px !important; margin: 0 !important; font-size: 0.8rem !important; }
+
+        /* AUTH OVERLAY */
+        #authOverlay {
+            position: fixed; inset: 0; background: var(--bg); z-index: 50000;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+        }
+        .login-card {
+            width: 85%; max-width: 400px; border: 1px solid var(--mana);
+            padding: 40px 20px; text-align: center; background: rgba(0, 30, 50, 0.3);
+        }
+
+        /* HP BAR (15$ Bar) */
+        .hp-section {
+            background: rgba(0, 0, 0, 0.5); border: 1px solid #333;
+            padding: 10px; margin-bottom: 15px; border-radius: 4px;
+        }
+        .hp-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+        .hp-label { font-size: 0.7rem; color: #ff6b6b; font-weight: bold; }
+        
+        .hp-bar-container {
+            height: 25px; background: var(--hp-bg); border: 1px solid #550000;
+            position: relative; border-radius: 2px; overflow: hidden;
+        }
+        .hp-fill {
+            height: 100%; width: 0%; transition: width 0.5s ease-in-out; box-shadow: 0 0 10px #ff0000;
+            background: linear-gradient(90deg, #cc0000, #ff0000);
+        }
+        .hp-fill.lvl-1 { background: linear-gradient(90deg, #cc0000, #ff0000); box-shadow: 0 0 10px #ff0000; }
+        .hp-fill.lvl-2 { background: linear-gradient(90deg, #005f73, #00d2ff); box-shadow: 0 0 10px #00d2ff; }
+        .hp-fill.lvl-3 { background: linear-gradient(90deg, #5a189a, #bc13fe); box-shadow: 0 0 10px #bc13fe; }
+        .hp-text {
+            position: absolute; width: 100%; text-align: center; top: 0; line-height: 25px;
+            font-size: 0.8rem; color: white; font-weight: bold; text-shadow: 1px 1px 2px black; z-index: 2;
+        }
+
+        /* Rank Tag */
+        .rank-tag { 
+            background: rgba(0,0,0,0.6); border: 1px solid currentColor; 
+            padding: 2px 10px; font-weight: 900; font-size: 0.8rem; 
+            box-shadow: 0 0 10px currentColor; display: inline-block;
+        }
+
+        /* CARDS & QUESTS */
+        .quest-card { background: var(--panel); border: 1px solid #333; padding: 15px; margin-bottom: 15px; position: relative; clip-path: polygon(0 0, 100% 0, 100% 90%, 95% 100%, 0 100%); transition: 0.3s; overflow: hidden; }
+        .card-rank-badge { position: absolute; right: 10px; top: 10px; font-size: 2.5rem; font-weight: 900; font-style: italic; opacity: 0.15; pointer-events: none; z-index: 0; }
+
+        /* BUTTONS */
+        .btn-system { background: rgba(0, 0, 0, 0.7); border: 1px solid var(--mana); color: var(--mana); padding: 12px; font-weight: bold; cursor: pointer; text-transform: uppercase; font-size: 0.7rem; width: 100%; transition: 0.2s; }
+        .btn-system:active { transform: scale(0.95); background: var(--mana); color:black; }
+        .btn-pay { background: var(--success); color: black; border: none; padding: 8px 15px; font-weight: bold; font-size: 0.75rem; cursor: pointer; width: 100%; margin-top: 10px; box-shadow: 0 0 10px rgba(80, 250, 123, 0.3); position: relative; z-index: 2; }
+        .discard-btn { color: var(--danger); background: none; border: 1px solid rgba(255,49,49,0.2); padding: 3px 8px; font-size: 0.6rem; cursor: pointer; margin-top: 10px; display: inline-block; position: relative; z-index: 2; }
+        .btn-zero { background: var(--danger); color: white; border: none; padding: 6px 12px; font-size: 0.7rem; font-weight: bold; cursor: pointer; border-radius: 4px; margin-top: 8px; display: none; box-shadow: 0 0 8px var(--danger); }
+        
+        .salary-container { border: 1px solid var(--success); background: rgba(80, 250, 123, 0.05); padding: 12px; margin-bottom: 15px; text-align: center; border-radius: 4px; }
+        .salary-value { font-size: 1.8rem; color: var(--success); font-weight: bold; font-family: monospace; display: block; }
+
+        /* GOLD BAR STYLES */
+        .gold-bar-container {
+            height: 20px; background: #2a1a00; border: 1px solid #665200;
+            position: relative; border-radius: 2px; overflow: hidden;
+            box-shadow: inset 0 0 5px #000;
+        }
+        .gold-fill {
+            height: 100%; background: linear-gradient(90deg, #b8860b, #ffd700);
+            width: 0%; transition: width 0.5s ease-in-out; box-shadow: 0 0 10px #ffd700;
+        }
+        .gold-fill.lvl-0 { background: linear-gradient(90deg, #b8860b, #ffd700); box-shadow: 0 0 10px #ffd700; }
+        .gold-fill.lvl-1 { background: linear-gradient(90deg, #005f73, #00d2ff); box-shadow: 0 0 10px #00d2ff; }
+        .gold-fill.lvl-2 { background: linear-gradient(90deg, #5a189a, #bc13fe); box-shadow: 0 0 10px #bc13fe; }
+        .gold-bar-text {
+            position: absolute; width: 100%; text-align: center; top: 0; line-height: 20px;
+            font-size: 0.75rem; color: white; font-weight: bold; text-shadow: 1px 1px 2px black; z-index: 2; font-family: monospace;
+        }
+
+        .full-view { display: none; position: fixed; inset: 0; background: var(--bg); z-index: 9999; padding: 20px; overflow-y: auto; }
+        input { width: 100%; padding: 15px; margin-bottom: 10px; background: #080a0f; border: 1px solid #333; color: white; box-sizing: border-box; }
+        
+        input[type="date"] {
+            background: #080a0f; color: white; border: 1px solid #333; padding: 12px; font-family: sans-serif;
+            color-scheme: dark; 
+        }
+
+        .calendar-box { background: var(--panel); padding: 15px; border: 1px solid #222; margin-bottom: 20px; }
+        .days-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+        .day-cell { aspect-ratio: 1; background: #080a0f; border: 1px solid #1a1a1a; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; color: #444; cursor: pointer; position: relative; }
+        .day-cell.has-completed { border-color: var(--debt-color); color: var(--debt-color); background: rgba(188, 19, 254, 0.1); }
+        .day-cell.today { border: 2px solid #fff !important; color: #fff !important; font-weight: 900; background: rgba(255, 255, 255, 0.1); box-shadow: 0 0 15px rgba(255, 255, 255, 0.2); transform: scale(1.05); z-index: 2; }
+
+        .stats-footer { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-top: 30px; border-top: 1px solid #333; padding-top: 15px; }
+        .stat-box { background: rgba(0,0,0,0.5); padding: 8px 4px; text-align: center; border: 1px solid #333; display: flex; flex-direction: column; justify-content: center; min-height: 70px; cursor: pointer; transition: 0.2s; }
+        .stat-box:active { transform: scale(0.98); background: rgba(255,255,255,0.05); }
+        .stat-title { font-size: 0.5rem; letter-spacing: 0.5px; margin-bottom: 5px; font-weight: bold; white-space: nowrap; }
+        .stat-val { font-size: 1rem; font-weight: bold; }
+        .stat-sub { font-size: 0.7rem; color:var(--success); font-family: monospace; margin-top: 2px; font-weight:bold; }
+
+        .archive-debt { border-left: 4px solid var(--debt-color) !important; }
+
+        .gold-row { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #333; }
+        .gold-label { font-size: 0.8rem; color: var(--gold); font-weight: bold; }
+        .gold-value { font-family: monospace; font-size: 1rem; color: white; }
+        
+        .karat-selector { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-bottom: 15px; }
+        .k-btn { background: rgba(0,0,0,0.5); border: 1px solid #444; color: #888; padding: 8px 0; font-size: 0.7rem; font-weight: bold; cursor: pointer; }
+        .k-btn.active { border-color: var(--gold); color: black; background: var(--gold); box-shadow: 0 0 10px rgba(255, 215, 0, 0.3); }
+
+        /* SAVING INDICATOR */
+        #saveIndicator {
+            position: fixed; top: 0; left: 0; width: 100%; height: 3px; background: transparent; z-index: 99999;
+            display: none;
+        }
+        #saveIndicator.saving {
+            display: block;
+            background: linear-gradient(90deg, var(--bg), var(--danger), var(--bg));
+            animation: savePulse 1s infinite;
+        }
+        #savingText {
+            position: fixed; top: 5px; right: 5px; color: var(--danger); font-size: 0.6rem; font-weight: bold;
+            background: rgba(0,0,0,0.8); padding: 2px 5px; border-radius: 3px; z-index: 99999; display: none;
+        }
+        @keyframes savePulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+
+        /* NEW MONTHLY LIST STYLES */
+        .monthly-header {
+            position: sticky; top: 0; background: var(--bg); z-index: 10;
+            padding-bottom: 15px; border-bottom: 1px solid #333; margin-bottom: 15px;
+        }
+        .add-box {
+            background: rgba(188, 19, 254, 0.05); padding: 15px; 
+            border: 1px solid var(--debt-color); margin-bottom: 20px;
+        }
+
+        .checkbox-wrapper { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+        .custom-checkbox { width: 16px; height: 16px; accent-color: var(--debt-color); cursor: pointer; margin: 0; }
+        .checkbox-label { font-size: 0.7rem; color: #ccc; cursor: pointer; }
+
+        /* TOAST NOTIFICATION */
+        #toastContainer {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            z-index: 100000; width: 80%; max-width: 300px;
+            pointer-events: none;
+        }
+        .toast {
+            background: rgba(16, 20, 30, 0.95); border: 1px solid var(--mana);
+            color: white; padding: 10px 15px; margin-top: 10px;
+            font-size: 0.8rem; text-align: center; border-radius: 4px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            animation: slideIn 0.3s ease-out; opacity: 1; transition: opacity 0.5s;
+        }
+        .toast.success { border-color: var(--success); color: var(--success); }
+        .toast.error { border-color: var(--danger); color: var(--danger); }
+        
+        @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        /* GOLD HISTORY STYLES */
+        .history-list-item {
+            background: rgba(0,0,0,0.4); border: 1px solid #333; 
+            margin-bottom: 8px; padding: 10px; 
+            display: grid; grid-template-columns: 1.5fr 1fr 1fr; 
+            align-items: center; font-family: monospace;
+        }
+        .hist-date { font-size: 0.65rem; color: #888; display: block; }
+        .hist-weight { color: white; font-weight: bold; font-size: 0.9rem; }
+        .hist-cost-block { text-align: center; border-left: 1px solid #333; border-right: 1px solid #333; }
+        .hist-label { font-size: 0.55rem; color: #666; display: block; }
+        .hist-val { font-size: 0.75rem; color: #ccc; }
+        .hist-pl-block { text-align: right; }
+        .hist-pl-val { font-size: 0.8rem; font-weight: bold; }
+        .hist-market { font-size: 0.65rem; color: var(--gold); }
+
     </style>
 </head>
 <body>
 
-    <div id="offline-indicator">⚠️ You are OFFLINE. Data will sync when online.</div>
+    <div id="saveIndicator"></div>
+    <div id="savingText">SAVING...</div>
+    <div id="toastContainer"></div>
 
-    <div id="loginScreen">
-        <h2 style="margin-bottom: 30px;">Smoking Tracker Login</h2>
-        <button id="loginBtn"><span>G</span> Sign in with Google</button>
-        <p style="margin-top: 20px; color: #aaa; font-size: 0.9em;">Data is saved to the Cloud</p>
-    </div>
-
-    <div id="userInfo" class="hidden">
-        <span id="userEmail"></span>
-        <button id="logoutBtn">Logout</button>
-    </div>
-
-    <div class="calendar-container hidden" id="calendarContainer">
-        <div class="calendar-header">
-            <button id="prevMonthBtn">&lt;</button>
-            <h2 id="currentMonth"></h2>
-            <button id="nextMonthBtn">&gt;</button>
-        </div>
-        <div class="calendar-weekdays"><div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div></div>
-        <div class="calendar-days" id="calendarDays"></div>
-        <div class="calendar-controls">
-             <button id="logCigaretteTodayButton" onclick="handleNewCigarette('today')">Log Cigarette Today</button>
-             <button id="resetDataButton" onclick="resetAllData()">Reset All Data</button>
+    <div id="authOverlay">
+        <div class="login-card">
+            <div style="color:var(--mana); margin-bottom:20px; letter-spacing:3px;">SYSTEM ACCESS V6.2</div>
+            <button class="btn-system" id="loginBtn" style="background: white; color: black; border: none;">INITIALIZE (GOOGLE)</button>
         </div>
     </div>
 
-    <div class="tracker-container hidden" id="trackerContainer">
-        <h1>Smoking Tracker for <span id="trackingDate"></span></h1>
-        <button class="back-button" onclick="goBackToCalendar()">Back to Calendar</button>
-        
-        <div class="daily-box">
-            <div class="living-tree-icon" id="livingTreeIcon">🌳</div>
-            <div>Cigarettes Today</div>
-            <div class="stat-value" id="dailyCount">0</div>
+    <!-- SETTINGS MODAL -->
+    <div id="settingsModal" class="modal-backdrop">
+        <div class="modal-window">
             
-            <div class="money-display">
-                <div class="money-box"><div class="money-label">Spent</div><div class="money-val" id="moneySpentDisplay">$0.00</div></div>
-                <div class="money-box"><div class="money-label">Saved (Limit)</div><div class="money-val" id="moneySavedDisplay" style="color:#00e676">$0.00</div></div>
-            </div>
-            
-            <div class="wishlist-container">
-                <div style="font-size:0.9em; color:#aaa; margin-bottom:5px;">Wishlist Queue</div>
-                <div class="wishlist-add-form">
-                    <input type="text" id="newGoalName" placeholder="Goal Name">
-                    <input type="number" id="newGoalCost" placeholder="Cost ($)">
-                    <button class="wishlist-add-btn" onclick="addWishlistGoal()">+</button>
+            <div id="mainSettingsMenu">
+                <div class="modal-title" data-i18n="settings">SYSTEM SETTINGS</div>
+
+                <div class="settings-section">
+                    <span class="settings-label" style="color:var(--success);">SELECT REGION (PRESET)</span>
+                    <select id="countrySelector" class="modal-input" onchange="applyCountryPreset(this.value)">
+                        <option value="LB">🇱🇧 LEBANON (LBP)</option>
+                        <option value="EG">🇪🇬 EGYPT (EGP)</option>
+                        <option value="SA">🇸🇦 SAUDI ARABIA (SAR)</option>
+                        <option value="AE">🇦🇪 UAE (AED)</option>
+                        <option value="US">🇺🇸 USA (USD)</option>
+                    </select>
                 </div>
-                <div id="wishlistList"></div>
-            </div>
 
-            <div class="money-settings">
-                <div><label>Pack Price:</label><input type="number" id="packPriceInput" placeholder="0" onchange="saveMoneySettings()"></div>
-                <div><label>Cigs/Pack:</label><input type="number" id="packSizeInput" placeholder="20" onchange="saveMoneySettings()"></div>
-            </div>
-
-            <div style="margin-top: 15px;">Daily Limit:</div>
-            <div class="limit-section" style="margin-top: 5px;">
-                 <input type="number" id="dailyLimitInput" min="0" placeholder="Set Limit">
-                 <button id="saveDailyLimitButton" class="hidden">Save</button>
-            </div>
-        </div>
-
-        <div class="note-section">
-            <h3>Daily Note</h3>
-            <textarea id="dailyNoteTextarea" placeholder="Add any notes..."></textarea>
-            <button id="saveNoteButton" class="hidden">Save Note</button>
-        </div>
-
-        <div class="task-section">
-            <h3>Tasks</h3>
-            <ul id="taskList"></ul>
-            <div class="task-add-form">
-                <input type="text" id="taskInput" placeholder="New task...">
-                <button id="addTaskButton">Add</button>
-            </div>
-        </div>
-
-        <div class="chart-filter-controls" id="trackerDailyTrendChartFilters">
-            <label>Chart:</label>
-            <select id="trackerDailyTrendChartMonthSelect"></select>
-            <label>Year:</label>
-            <select id="trackerDailyTrendChartYearSelect"></select>
-        </div>
-        <div class="tracker-chart-container" id="dailyTrendChartContainer">
-            <canvas id="dailyTrendChart"></canvas>
-        </div>
-
-        <table class="data-table">
-            <thead><tr><th>Time</th><th>Diff</th><th>Reason</th><th>Actions</th></tr></thead>
-            <tbody id="dataBody"></tbody>
-        </table>
-        
-        <div class="controls">
-            <div class="trigger-section">
-                <select id="triggerSelect" onchange="toggleCustomTrigger()">
-                    <option value="">Why are you smoking?</option>
-                    <option value="Coffee ☕">Coffee ☕</option>
-                    <option value="Stress ⚡">Stress ⚡</option>
-                    <option value="Boredom 😐">Boredom 😐</option>
-                    <option value="After Meal 🍽️">After Meal 🍽️</option>
-                    <option value="Driving 🚗">Driving 🚗</option>
-                    <option value="Waking Up 🌅">Waking Up 🌅</option>
-                    <option value="Socializing 🗣️">Socializing 🗣️</option>
-                    <option value="Other">Write another reason...</option>
-                </select>
-                <input type="text" id="customTriggerInput" class="hidden" placeholder="Write reason here...">
-            </div>
-            <button class="log-btn" onclick="handleNewCigarette()">Log New Cigarette</button>
-        </div>
-
-        <div class="extra-controls">
-            <button class="extra-btn" onclick="openHealthModal()" title="Health">❤️</button>
-            <button class="extra-btn" onclick="openBreathingModal()" title="Breathe">🧘</button>
-            <button class="extra-btn" onclick="openDetoxModal()" title="Reduction & Money">📉</button>
-            <button class="extra-btn" onclick="openHeatmapModal()" title="Risk Times">🔥</button>
-        </div>
-    </div>
-
-    <!-- Modals -->
-    <div id="healthModal" class="modal-overlay"><div class="modal-content"><button class="close-modal" onclick="closeModal('healthModal')">×</button><h3>Health Recovery</h3><h2 id="timeSinceLastCig" style="color:#00e676;">0h 0m</h2><ul class="health-list" id="healthList"></ul></div></div>
-    
-    <div id="breathingModal" class="modal-overlay"><div class="modal-content"><button class="close-modal" onclick="closeModal('breathingModal')">×</button><h3>Calm Down</h3><div class="circle-container" id="breathingContainer"><div class="breathing-circle"></div><div class="breathing-text" id="breathingText">Ready?</div></div></div></div>
-    
-    <!-- AUTOMATIC HEATMAP MODAL -->
-    <div id="heatmapModal" class="modal-overlay">
-        <div class="modal-content">
-            <button class="close-modal" onclick="closeModal('heatmapModal')">×</button>
-            <h3>Risk Times & Recovery</h3>
-            
-            <div class="heatmap-container">
-                <div class="heatmap-title">Historical Intensity</div>
-                <div class="heatmap-grid" id="heatmapGridOld"></div>
-                <div class="heatmap-labels">
-                    <span>12AM</span><span>3AM</span><span>6AM</span><span>9AM</span>
-                    <span>12PM</span><span>3PM</span><span>6PM</span><span>9PM</span>
+                <div class="settings-section">
+                    <span class="settings-label" data-i18n="exchangeRate">EXCHANGE RATE</span>
+                    <div style="display:flex; gap:5px;">
+                        <input type="number" id="settingRateInput" class="modal-input" placeholder="Value">
+                        <button class="btn-system" style="width:auto; padding:0 15px;" onclick="syncRateFromAPI()">🔄 SYNC RATE</button>
+                    </div>
+                    <div style="font-size:0.6rem; color:#666; text-align:left; margin-top:-10px; margin-bottom:10px;">
+                        Active: <span id="activeCurrencyDisplay">LBP</span> | Weather Loc: <span id="activeLocDisplay">Baalbek</span>
+                    </div>
                 </div>
-            </div>
-        </div>
-    </div>
 
-    <div id="detoxModal" class="modal-overlay">
-        <div class="modal-content">
-            <button class="close-modal" onclick="closeModal('detoxModal')">×</button>
-            <h3>Monitor</h3>
-            <!-- EDITED: REMOVED MONEY TAB -->
-            <div class="detox-tabs">
-                <button class="detox-tab active" id="tabDaily" onclick="switchDetoxTab('daily')">Daily</button>
-                <button class="detox-tab" id="tabWeekly" onclick="switchDetoxTab('weekly')">Weekly</button>
-            </div>
-            
-            <div id="detoxStatsView">
-                <div class="detox-inputs">
-                    <div style="display:flex; justify-content:space-between;"><label>Years:</label><input type="number" id="historyYearsInput" placeholder="15" onchange="saveDetoxSettings()"></div>
-                    <div style="display:flex; justify-content:space-between;"><label>Old Avg:</label><input type="number" id="historyBaselineInput" placeholder="40" onchange="saveDetoxSettings()"></div>
+                <div class="settings-section">
+                    <span class="settings-label" data-i18n="growthGraph">SYSTEM GROWTH HISTORY</span>
+                    <div class="graph-container" id="growthGraph">
+                        <svg id="chartSvg"></svg>
+                        <div id="graphTooltip" class="graph-tooltip"></div>
+                    </div>
                 </div>
-                <div class="detox-stats">
-                    <div class="detox-stat-item"><div class="detox-stat-title" id="detoxLoadTitle">Load</div><div class="progress-bar-bg"><div class="progress-bar-fill" id="detoxProgressBar"></div></div><div style="display:flex; justify-content:space-between; font-size:0.8em;"><span id="detoxCurrentVal">0</span><span id="detoxBaselineVal">40</span></div></div>
-                    <div class="detox-stat-item"><div class="detox-stat-title">Avoided</div><div class="detox-stat-val" id="detoxAvoidedToday" style="color:#00e676;">0</div></div>
-                    <div class="detox-stat-item"><div class="detox-stat-title">Reduction</div><div class="detox-stat-val" id="detoxReductionPercent">0%</div></div>
+
+                <div class="settings-section">
+                    <button class="btn-system" onclick="toggleConfigMode()" style="margin-bottom:10px;">🛠 CONFIG (RANKS / LOC)</button>
+                    <div id="configPanel" style="display:none; text-align:left;">
+                        
+                        <span class="settings-label" style="margin-top:10px;">CUSTOM RANK THRESHOLDS (USD/LOCAL)</span>
+                        <div class="rank-config-row"><span class="rank-tag rank-badge-sm" style="color:var(--rank-e)">E</span><input type="number" id="rankE" class="modal-input rank-input"></div>
+                        <div class="rank-config-row"><span class="rank-tag rank-badge-sm" style="color:var(--rank-c)">C</span><input type="number" id="rankC" class="modal-input rank-input"></div>
+                        <div class="rank-config-row"><span class="rank-tag rank-badge-sm" style="color:var(--rank-b)">B</span><input type="number" id="rankB" class="modal-input rank-input"></div>
+                        <div class="rank-config-row"><span class="rank-tag rank-badge-sm" style="color:var(--rank-a)">A</span><input type="number" id="rankA" class="modal-input rank-input"></div>
+                        <div class="rank-config-row"><span class="rank-tag rank-badge-sm" style="color:var(--rank-s)">S</span><input type="number" id="rankS" class="modal-input rank-input"></div>
+                        <div class="rank-config-row"><span class="rank-tag rank-badge-sm" style="color:var(--rank-ss)">SS</span><input type="number" id="rankSS" class="modal-input rank-input"></div>
+                        <button class="btn-system" onclick="saveCustomRanks()" style="margin-top:5px; border-color:var(--success); color:var(--success);">SAVE RANKS</button>
+
+                        <span class="settings-label" style="margin-top:10px;">ENVIRONMENT (WEATHER)</span>
+                        <input type="text" id="locName" class="modal-input" placeholder="City Name">
+                        <div style="display:flex; gap:5px;">
+                            <input type="number" id="locLat" class="modal-input" placeholder="Lat">
+                            <input type="number" id="locLon" class="modal-input" placeholder="Lon">
+                        </div>
+
+                        <span class="settings-label">LANGUAGE</span>
+                        <button class="btn-system" onclick="toggleLanguage()" id="langBtn">SWITCH TO ARABIC</button>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <span class="settings-label" data-i18n="recurring">RECURRING TASKS</span>
+                    <button class="btn-system" onclick="openRecurringList()" style="margin-bottom:10px; border-color:var(--debt-color); color:var(--debt-color);" data-i18n="manageRecurring">MANAGE FIXED EXPENSES</button>
                     
-                    <div class="detox-stat-item" id="detoxCostItem" style="margin-top:15px; border-top:1px solid #444; padding-top:10px;">
-                        <div class="detox-stat-title" id="detoxCostTitle">Daily Cost</div>
-                        <div class="detox-stat-val" id="detoxCostVal" style="color:#ffc107;">$0.00</div>
+                    <span class="settings-label" data-i18n="dataMgmt">DATA MANAGEMENT</span>
+                    <button class="btn-system" onclick="exportData()" style="margin-bottom:10px;" data-i18n="download">⬇ DOWNLOAD FILE (LOCAL)</button>
+                    <button class="file-btn" onclick="document.getElementById('importFile').click()" data-i18n="import">⬆ IMPORT BACKUP</button>
+                    <input type="file" id="importFile" style="display:none;" onchange="importData(this)">
+                </div>
+
+                <div class="settings-section" style="border:none;">
+                    <button class="btn-system" style="border-color:var(--danger); color:var(--danger); margin-bottom:10px;" onclick="hardReset()" data-i18n="reset">♻ FACTORY RESET</button>
+                    <button class="btn-system" style="border-color:#666; color:#aaa;" onclick="logout()" data-i18n="logout">LOGOUT</button>
+                </div>
+
+                <button class="modal-btn btn-cancel" style="width:100%" onclick="closeSettings()" data-i18n="close">CLOSE & SAVE</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- GOLD HISTORY MODAL (NEW) -->
+    <div id="goldHistoryModal" class="modal-backdrop">
+        <div class="modal-window">
+            <div class="modal-title" style="color:var(--gold); border-color:var(--gold);">GOLD PORTFOLIO HISTORY</div>
+            
+            <div class="karat-selector">
+                <button class="k-btn active" id="histK24" onclick="renderGoldHistory(24)">24K</button>
+                <button class="k-btn" id="histK22" onclick="renderGoldHistory(22)">22K</button>
+                <button class="k-btn" id="histK21" onclick="renderGoldHistory(21)">21K</button>
+                <button class="k-btn" id="histK18" onclick="renderGoldHistory(18)">18K</button>
+            </div>
+
+            <div id="historyList" style="text-align:left; max-height:400px; overflow-y:auto; margin-bottom:15px;">
+                <!-- Items Injected -->
+            </div>
+
+            <button class="modal-btn btn-cancel" style="width:100%" onclick="document.getElementById('goldHistoryModal').style.display='none'">CLOSE</button>
+        </div>
+    </div>
+
+    <!-- RECURRING MANAGEMENT MODAL -->
+    <div id="recurringModal" class="modal-backdrop">
+        <div class="modal-window">
+            <div class="modal-title" style="color:var(--debt-color); border-color:var(--debt-color);">FIXED EXPENSES</div>
+            <div id="recurringList" style="text-align:left; max-height:250px; overflow-y:auto; margin-bottom:15px;"></div>
+            <button class="modal-btn btn-cancel" style="width:100%" onclick="document.getElementById('recurringModal').style.display='none'">BACK</button>
+        </div>
+    </div>
+
+    <!-- GOLD TRANSACTION MODAL -->
+    <div id="goldTransactionModal" class="modal-backdrop">
+        <div class="modal-window" style="border-color:var(--gold); box-shadow: 0 0 20px rgba(255, 215, 0, 0.15);">
+            <div class="modal-title" id="goldTransTitle" style="color:var(--gold); border-color:var(--gold);">GOLD TRANSACTION</div>
+            <p id="goldTransSub" style="font-size:0.6rem; color:#888; margin-bottom:15px;">...</p>
+            
+            <input type="number" id="goldTransInput" class="modal-input" placeholder="Enter Weight (Grams)">
+            
+            <div id="divManualCost" style="display:none; margin-bottom:10px;">
+                <div style="font-size:0.6rem; color:#aaa; margin-bottom:5px; text-align:left;">ACTUAL COST PAID ($)</div>
+                <input type="number" id="goldManualCostInput" class="modal-input" placeholder="Total USD Paid">
+            </div>
+
+            <div style="font-size:0.6rem; color:#aaa; margin-bottom:5px;">MARKET VALUE</div>
+            <div id="goldTransValuePreview" style="font-size:1.2rem; font-family:monospace; color:white; font-weight:bold; margin-bottom:15px;">$0.00</div>
+
+            <div class="modal-actions">
+                <button class="modal-btn btn-cancel" onclick="closeGoldTransModal()">CANCEL</button>
+                <button class="modal-btn" id="btnConfirmGoldTrans" style="background:var(--gold); color:black;">CONFIRM</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- WITHDRAWAL MODAL -->
+    <div id="withdrawModal" class="modal-backdrop">
+        <div class="modal-window">
+            <div class="modal-title">SYSTEM WITHDRAWAL</div>
+            <input type="text" id="withdrawInput" class="modal-input" placeholder="Amount (e.g. $50 or 5k)">
+            <div style="font-size:0.6rem; color:#888; text-align:left; margin-left:2px;">SELECT SOURCE:</div>
+            
+            <div class="source-grid">
+                <div id="btnSrcCurrent" class="source-btn" onclick="selectSource('current')">
+                    <span class="src-label" style="color:var(--hp-bg)">CURRENT</span>
+                    <span class="src-val" id="dispCurrent">0</span>
+                    <span class="src-sub-usd" id="dispCurrentUSD">$0.00</span>
+                </div>
+                <div id="btnSrcSavings" class="source-btn" onclick="selectSource('savings')">
+                    <span class="src-label" style="color:var(--success)">SAVINGS</span>
+                    <span class="src-val" id="dispSavings">0</span>
+                    <span class="src-sub-usd" id="dispSavingsUSD">$0.00</span>
+                </div>
+            </div>
+
+            <div id="savingsWarning" style="display:none; color:var(--danger); font-size:0.7rem; font-weight:bold; margin-bottom:10px; border:1px solid var(--danger); padding:5px; animation:savePulse 1s infinite;">
+                ⚠ WARNING: PENALTY RISK ⚠<br>SAVINGS ARE FOR EMERGENCY ONLY!
+            </div>
+
+            <div class="modal-actions">
+                <button class="modal-btn btn-cancel" onclick="closeWithdrawModal()">CANCEL</button>
+                <button class="modal-btn btn-confirm" onclick="submitWithdraw()">CONFIRM</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- GOLD PRICES MODAL -->
+    <div id="goldModal" class="modal-backdrop">
+        <div class="modal-window">
+            <div class="modal-title" style="color:var(--gold); border-color:var(--gold);">
+                MARKET PRICES
+            </div>
+            <p style="font-size:0.6rem; color:#aaa; margin-bottom:10px;">SELECT SYSTEM KARAT</p>
+            <div class="karat-selector">
+                <button class="k-btn" id="k18" onclick="setKarat(18)">18K</button>
+                <button class="k-btn" id="k21" onclick="setKarat(21)">21K</button>
+                <button class="k-btn" id="k22" onclick="setKarat(22)">22K</button>
+                <button class="k-btn active" id="k24" onclick="setKarat(24)">24K</button>
+            </div>
+            <div id="goldLoading" style="padding:20px; color:#888;">Connecting to Satellite...</div>
+            <div id="goldContent" style="display:none;">
+                <div id="lastUpdateText" style="font-size:0.6rem; color:#666; text-align:center; margin-bottom:10px;"></div>
+                <div class="gold-row">
+                    <span class="gold-label">GRAM (<span id="dispKaratTitle">24K</span>)</span>
+                    <span class="gold-value" id="priceDynamicGram">$0.00</span>
+                </div>
+                <div id="rowOunce" class="gold-row" style="display:none;">
+                    <span class="gold-label">OUNCE (24K)</span>
+                    <span class="gold-value" id="priceOunce">$0.00</span>
+                </div>
+                <div id="rowLira" class="gold-row" style="display:none;">
+                    <span class="gold-label">LIRA (22K)</span>
+                    <span class="gold-value" id="priceLira">$0.00</span>
+                </div>
+                <div id="rowHalfLira" class="gold-row" style="border:none; display:none;">
+                    <span class="gold-label">HALF LIRA (22K)</span>
+                    <span class="gold-value" id="priceHalfLira">$0.00</span>
+                </div>
+            </div>
+            <button class="modal-btn btn-cancel" style="margin-top:20px; width:100%" onclick="closeGoldModal()">CLOSE & SAVE</button>
+        </div>
+    </div>
+
+    <!-- MAIN VIEW -->
+    <div id="mainView" style="display: none;">
+        
+        <div class="system-header">
+            <div class="weather-widget">
+                <span class="weather-loc">ENV: LOADING...</span>
+                <span class="weather-det" id="weatherDetail">SCANNING...</span>
+            </div>
+            <div class="settings-icon" onclick="openSettings()">⚙️</div>
+        </div>
+
+        <div class="hp-section">
+            <div class="hp-header">
+                <div class="hp-label" data-i18n="activity">MONTHLY ACTIVITY ($15 Base)</div>
+            </div>
+            <div class="hp-bar-container">
+                <div class="hp-fill" id="hpFill"></div>
+                <div class="hp-text" id="hpText">Loading...</div>
+            </div>
+        </div>
+
+        <div class="salary-container">
+            <div style="font-size:0.6rem; color:var(--success); letter-spacing:2px;" data-i18n="salary">SALARY WALLET</div>
+            <span class="salary-value" id="salaryDisplay">$0.00</span>
+            <div style="font-size:0.7rem; color:#888;">Rate: <span id="displayRate">89500</span></div>
+            <button id="zeroSalary" class="btn-zero" onclick="confirmZero('salary')">Zero Remainder (<1k)</button>
+            <div style="display:flex; gap:5px; margin-top:10px;">
+                <button class="btn-system" style="border-color:var(--success); color:var(--success); flex:1;" onclick="addSalary()" data-i18n="income">+ Income</button>
+                <button class="btn-system" style="border-color:var(--mana); color:var(--mana); flex:1;" onclick="salaryToVault()" data-i18n="transfer">Transfer</button>
+            </div>
+        </div>
+
+        <!-- MASTER CARD -->
+        <div class="master-card">
+            <div class="master-top-row">
+                <div style="display:flex; flex-direction:column; gap:2px;">
+                    <span id="userEmailDisplay" style="font-size:0.65rem; color:#aaa;">---</span>
+                </div>
+                <div style="text-align:right;">
+                    <div id="playerRankBadge" class="rank-tag" style="margin-bottom:3px;">RANK E</div>
+                    <div style="display:flex; align-items:center; justify-content:flex-end;">
+                        <span class="level-text" style="font-size:0.75rem;">SYSTEM LVL: <span id="playerLevel" style="color:white;">1</span></span>
                     </div>
                 </div>
             </div>
+
+            <div class="master-main-val">
+                <span class="lbl-sm" style="color:var(--mana);" data-i18n="totalCash">TOTAL CASH AVAILABLE (LIQUID)</span>
+                <span class="net-gold" id="totalAssets">0</span>
+                <span class="net-usd" id="totalUSD">$0.00</span>
+                
+                <div class="net-assets-row">
+                    <span data-i18n="netWorth">TOTAL NET WORTH</span>: <span id="realNetWorth" style="color:white; font-weight:bold;">0</span>
+                </div>
+
+                <div style="margin: 20px 15px 5px 15px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
+                        <span style="font-size:0.6rem; color:#666;">LIQUID RESERVE (POTENTIAL GOLD)</span>
+                        <span style="font-size:0.6rem; color:var(--gold); font-weight:bold; cursor:pointer;" onclick="showGoldPrices()" id="barKaratIndicator">24K ⚙️</span>
+                    </div>
+                    <div class="gold-bar-container" style="opacity:0.7;">
+                        <div class="gold-fill" id="goldFill"></div>
+                        <div class="gold-bar-text" id="goldText">Calculated Reserve...</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="master-grid">
+                <div class="m-col">
+                    <span class="lbl-sm" style="color:var(--hp-bg);" data-i18n="vaultCurrent">THIS MONTH (CASH)</span>
+                    <div class="val-lg" id="vaultCurrentDisplay">0</div>
+                    <div class="val-usd-sub" id="vaultCurrentUSD">$0.00</div>
+                </div>
+                <div class="m-col">
+                    <span class="lbl-sm" style="color:var(--success);" data-i18n="vaultSavings">SAVINGS (CASH)</span>
+                    <div class="val-lg" id="vaultSavingsDisplay">0</div>
+                    <div class="val-usd-sub" id="vaultSavingsUSD">$0.00</div>
+                </div>
+            </div>
+
+            <button id="zeroVault" class="btn-zero" style="width:100%; border-radius:0 0 8px 8px; margin:0;" onclick="confirmZero('vault')">Zero Remainder (<1k)</button>
+        </div>
+
+        <div class="main-actions" style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:15px;">
+            <button class="btn-system" onclick="startFlowDeposit()" data-i18n="addAssets">+ Add Assets</button>
+            <button class="btn-system btn-withdraw" style="border-color:var(--danger); color:var(--danger);" onclick="openWithdrawModal()" data-i18n="withdraw">Withdrawal</button>
+        </div>
+
+        <!-- GOLD VAULT CARD -->
+        <div class="gold-vault-card">
+            <div class="gold-vault-header">
+                <span>PHYSICAL GOLD VAULT</span>
+                <span style="font-size:0.6rem; color:#666;">PORTFOLIO & DCA</span>
+            </div>
+            
+            <div class="portfolio-summary">
+                <div class="portfolio-label" data-i18n="portValue">TOTAL PORTFOLIO VALUE (ALL KARATS)</div>
+                <div class="portfolio-total" id="portTotalVal">$0.00</div>
+                <div class="portfolio-spent">TOTAL SPENT: <span id="portTotalSpent">$0.00</span></div>
+                <div class="portfolio-profit" id="portProfit">0.00</div>
+            </div>
+
+            <div class="gold-tabs">
+                <div class="g-tab" id="gt18" onclick="selectGoldVaultTab(18)">18K</div>
+                <div class="g-tab" id="gt21" onclick="selectGoldVaultTab(21)">21K</div>
+                <div class="g-tab" id="gt22" onclick="selectGoldVaultTab(22)">22K</div>
+                <div class="g-tab active" id="gt24" onclick="selectGoldVaultTab(24)">24K</div>
+            </div>
+
+            <div class="gold-main-display">
+                <div id="goldVaultGrams" class="gold-grams-display">0.00g</div>
+                <div id="goldVaultVal" class="gold-val-display">$0.00</div>
+                
+                <div class="dca-stats">
+                    <div class="dca-item">
+                        <span class="dca-lbl">AVG COST/g</span>
+                        <span class="dca-val" id="dcaAvgCost">$0.00</span>
+                    </div>
+                    <div class="dca-item">
+                        <span class="dca-lbl">MARKET PRICE</span>
+                        <span class="dca-val" style="color:var(--gold);" id="dcaMarketPrice">$0.00</span>
+                    </div>
+                </div>
+
+                <div style="margin: 15px 5px 0 5px;">
+                    <div class="gold-bar-container">
+                        <div class="gold-fill" id="goldVaultFill" style="background: linear-gradient(90deg, #ffd700, #fff);"></div>
+                        <div class="gold-bar-text" id="goldVaultText" style="color:black; text-shadow:none;">0% FILL</div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display:flex; border-top:1px solid rgba(255,215,0,0.2);">
+                <button class="btn-system" style="border:none; border-right:1px solid rgba(255,215,0,0.2); color:white; background:rgba(0,0,0,0.2);" onclick="openGoldTransaction('buy')" data-i18n="store">
+                    STORE (BUY)
+                </button>
+                <button class="btn-system" style="border:none; border-right:1px solid rgba(255,215,0,0.2); color:#bc13fe; background:rgba(0,0,0,0.2);" onclick="openGoldHistory()">
+                    📜 HISTORY
+                </button>
+                <button class="btn-system" style="border:none; color:var(--gold); background:rgba(0,0,0,0.2);" onclick="openGoldTransaction('sell')" data-i18n="liquidate">
+                    LIQUIDATE (SELL)
+                </button>
+            </div>
+        </div>
+
+        <!-- CALENDAR -->
+        <div class="calendar-box">
+            <div style="display:flex; justify-content:space-between; margin-bottom:10px; color:var(--mana); font-size:0.8rem;">
+                <button onclick="changeMonth(-1)" style="background:none; border:none; color:inherit; cursor:pointer;">&lt;</button>
+                <span id="monthTitle">MONTH</span>
+                <button onclick="changeMonth(1)" style="background:none; border:none; color:inherit; cursor:pointer;">&gt;</button>
+            </div>
+            <div class="days-grid" id="daysGrid"></div>
+        </div>
+
+        <!-- STATS FOOTER -->
+        <div class="stats-footer">
+            <div class="stat-box" onclick="openMonthlyList('paid')" style="color:var(--debt-color); border-color:var(--debt-color);">
+                <div class="stat-title" data-i18n="paid">PAID (MONTH)</div>
+                <div class="stat-val" id="countPaidDebts">0</div>
+                <div class="stat-sub" id="valPaidDebts">$0.00</div>
+            </div>
+
+            <div class="stat-box" onclick="openMonthlyList('pending')" style="color:var(--danger); border-color:var(--danger);">
+                <div class="stat-title" data-i18n="unpaid">UNPAID (MONTH)</div>
+                <div class="stat-val" id="countUnpaidDebts">0</div>
+                <div class="stat-sub" id="valUnpaidDebts">$0.00</div>
+            </div>
+
+            <div class="stat-box" style="color:var(--gold); border-color:var(--gold);" onclick="showToast('Showing Lifetime Achievements', 'info')">
+                <div class="stat-title" data-i18n="allTime">ALL TIME PAID</div>
+                <div class="stat-val" id="countAllPaid">0</div>
+                <div class="stat-sub" id="valAllPaid">$0.00</div>
+            </div>
+        </div>
+
+        <div style="margin-top:10px;">
+            <button class="btn-system" onclick="showGoldPrices()" style="border-color:var(--gold); color:black; background:var(--gold); width:100%;" data-i18n="goldPrices">
+                GOLD PRICES 🟡
+            </button>
         </div>
     </div>
 
-    <script>
-        'use strict';
-        
-        // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        // Firebase Config
-        // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        const firebaseConfig = { 
-            apiKey: "AIzaSyC7K8VY7GHb9BnA2OIpUN__zlm_OZm0kas", 
-            authDomain: "my-smoking-tracker.firebaseapp.com", 
-            projectId: "my-smoking-tracker", 
-            storageBucket: "my-smoking-tracker.firebasestorage.app", 
-            messagingSenderId: "464362470086", 
-            appId: "1:464362470086:web:1c43ae97b42b7b1db4f5c7" 
+    <!-- MONTHLY LIST VIEW -->
+    <div id="monthlyView" class="full-view">
+        <div class="monthly-header">
+            <button class="btn-system" onclick="closeViews()">BACK TO DASHBOARD</button>
+            <h2 id="monthlyViewTitle" style="color:var(--mana); margin-top:15px;"></h2>
+        </div>
+
+        <div id="addDebtSection" class="add-box" style="display:none;">
+            <div style="font-size:0.6rem; color:var(--debt-color); margin-bottom:5px;">ADD NEW DEBT FOR THIS MONTH</div>
+            <input type="date" id="qDate" placeholder="Target Date">
+            <input type="text" id="qTitle" placeholder="Debt Name / Title">
+            <input type="text" id="qTarget" placeholder="Amount (e.g. $50, 100k, 1m)">
+            
+            <div class="checkbox-wrapper">
+                <input type="checkbox" id="qRecurring" class="custom-checkbox">
+                <label for="qRecurring" class="checkbox-label">Repeat Monthly (Fixed Expense)</label>
+            </div>
+
+            <button class="btn-system" style="background:var(--debt-color); color:#fff; border:none;" onclick="registerQuest(true)">ADD DEBT RECORD</button>
+        </div>
+
+        <div id="monthlyListContainer"></div>
+    </div>
+
+    <!-- DAY VIEW -->
+    <div id="dayView" class="full-view">
+        <button class="btn-system" onclick="closeViews()">BACK TO CALENDAR</button>
+        <h2 id="dayTitle" style="color:var(--mana); margin-top:20px; border-bottom:1px solid #333; padding-bottom:10px;"></h2>
+        <div id="dayList"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, updateDoc, onSnapshot, serverTimestamp, collection, addDoc, getDocs, deleteDoc, writeBatch, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyD-j_kXAR8PqOPd1GBEst-sRWZNCpuFM7w",
+            authDomain: "my-system-leveling.firebaseapp.com",
+            projectId: "my-system-leveling",
+            storageBucket: "my-system-leveling.firebasestorage.app",
+            messagingSenderId: "894105661320",
+            appId: "1:894105661320:web:beb8bdad2d4da8b97a943d"
         };
-        // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-        firebase.initializeApp(firebaseConfig); const db = firebase.firestore(); const auth = firebase.auth();
-        db.enablePersistence().catch(console.log);
-        if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'));
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const provider = new GoogleAuthProvider();
 
-        function requestNotificationPermission() { if (Notification.permission !== "granted" && Notification.permission !== "denied") Notification.requestPermission(); }
-        function showCooldownNotification() { if (Notification.permission === "granted" && navigator.serviceWorker) navigator.serviceWorker.ready.then(r => r.showNotification("Time's Up!", { body: "Log now.", icon: "https://cdn-icons-png.flaticon.com/512/3665/3665924.png", vibrate: [200], tag: "cooldown", renotify: true })); }
-        function updateOnlineStatus() { document.getElementById('offline-indicator').style.display = navigator.onLine ? 'none' : 'block'; }
-        window.addEventListener('online', updateOnlineStatus); window.addEventListener('offline', updateOnlineStatus);
+        enableIndexedDbPersistence(db).catch((err) => { console.log("Persistence error:", err.code); });
 
-        let currentUser=null, unsubscribeDoc=null;
-        
-        document.getElementById('loginBtn').onclick = () => {
-            auth.signInWithPopup(new firebase.auth.GoogleAuthProvider())
-            .then((result) => { console.log("Logged in"); })
-            .catch((error) => { console.error("Login Error:", error); alert("Login Failed: " + error.message); });
+        const Money = {
+            add: (a, b) => Math.round((a + b) * 100) / 100,
+            sub: (a, b) => Math.round((a - b) * 100) / 100,
+            val: (a) => Math.round(a * 100) / 100
         };
 
-        document.getElementById('logoutBtn').onclick = () => auth.signOut();
+        const COUNTRIES = {
+            'LB': { name: 'Lebanon', city: 'Baalbek', lat: 34.00, lon: 36.21, currency: 'LBP', symbol: 'L.L', useK: true },
+            'EG': { name: 'Egypt', city: 'Cairo', lat: 30.04, lon: 31.23, currency: 'EGP', symbol: 'E£', useK: false },
+            'SA': { name: 'Saudi Arabia', city: 'Riyadh', lat: 24.71, lon: 46.67, currency: 'SAR', symbol: 'SAR', useK: false },
+            'AE': { name: 'UAE', city: 'Dubai', lat: 25.20, lon: 55.27, currency: 'AED', symbol: 'DH', useK: false },
+            'US': { name: 'USA', city: 'New York', lat: 40.71, lon: -74.00, currency: 'USD', symbol: '$', useK: false }
+        };
 
-        auth.onAuthStateChanged(u => {
-            if (u) { currentUser=u; document.getElementById('loginScreen').classList.add('hidden'); document.getElementById('userInfo').classList.remove('hidden'); document.getElementById('calendarContainer').classList.remove('hidden'); document.getElementById('userEmail').textContent = u.email; loadSmokingDataFromCloud(); }
-            else { currentUser=null; smokingData={dailyRecords:{}, settings:{}}; if(unsubscribeDoc) unsubscribeDoc(); document.getElementById('loginScreen').classList.remove('hidden'); document.getElementById('calendarContainer').classList.add('hidden'); document.getElementById('trackerContainer').classList.add('hidden'); }
-        });
-
-        let currentDate=new Date(), selectedDate=null, smokingData={dailyRecords:{}, settings:{}};
-        let currentDetoxTab = 'daily';
-
-        function getDeviceLocalTime() { return new Date(); }
-        function ensureDailyRecordStructure(dR) {
-            if(!dR.periods) dR={periods:[{startTime:getDeviceLocalTime().getTime(), endTime:null, cigarettes:0, lastActivity:getDeviceLocalTime().getTime(), entries:[]}], limit:0, note:'', tasks:[]};
-            return dR;
-        }
-        function getOrCreateCurrentPeriod(k) { 
-            if(!smokingData.dailyRecords[k]) smokingData.dailyRecords[k] = ensureDailyRecordStructure({});
-            return smokingData.dailyRecords[k].periods[0]; 
-        }
-        function formatDuration(s) { if(isNaN(s)||s<0)s=0; const h=Math.floor(s/3600), m=Math.floor((s%3600)/60), sec=Math.floor(s%60); return (h>0?h+'h ':'')+(m>0?m+'m ':'')+sec+'s'; }
-        function getTimeDifference(t1, t2) { const d = Math.abs(Number(t2) - Number(t1)); return d === 0 ? '0s' : formatDuration(Math.floor(d / 1000)); }
-
-        function toggleCustomTrigger() {
-            const sel = document.getElementById('triggerSelect'); const inp = document.getElementById('customTriggerInput');
-            if(sel.value === 'Other') { inp.classList.remove('hidden'); inp.focus(); } else { inp.classList.add('hidden'); }
+        function getSystemDate() {
+            const options = { timeZone: "Asia/Beirut", year: 'numeric', month: '2-digit', day: '2-digit' };
+            const formatter = new Intl.DateTimeFormat('en-CA', options);
+            return formatter.format(new Date());
         }
 
-        function addWishlistGoal() {
-            const name = document.getElementById('newGoalName').value;
-            const cost = parseFloat(document.getElementById('newGoalCost').value);
-            if(!name || !cost) return;
-            if(!smokingData.settings.wishlistGoals) smokingData.settings.wishlistGoals = [];
-            smokingData.settings.wishlistGoals.push({id:Date.now(), name, cost});
-            document.getElementById('newGoalName').value = ''; document.getElementById('newGoalCost').value = '';
-            saveSmokingDataToStorage(); refreshUI();
-        }
-        function deleteWishlistGoal(id) {
-            if(confirm("Remove goal?")) {
-                smokingData.settings.wishlistGoals = smokingData.settings.wishlistGoals.filter(g => g.id !== id);
-                saveSmokingDataToStorage(); refreshUI();
+        window.showToast = (msg, type='info') => {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = msg;
+            container.appendChild(toast);
+            setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 500); }, 3000);
+        };
+
+        const TRANSLATIONS = {
+            en: {
+                settings: "SYSTEM SETTINGS", exchangeRate: "EXCHANGE RATE",
+                growthGraph: "SYSTEM GROWTH HISTORY", recurring: "RECURRING TASKS", manageRecurring: "MANAGE FIXED EXPENSES",
+                dataMgmt: "DATA MANAGEMENT", download: "⬇ DOWNLOAD FILE (LOCAL)", import: "⬆ IMPORT BACKUP",
+                reset: "♻ FACTORY RESET", logout: "LOGOUT", close: "CLOSE & SAVE", activity: "MONTHLY ACTIVITY ($15 Base)",
+                salary: "SALARY WALLET", income: "+ Income", transfer: "Transfer", totalCash: "TOTAL CASH AVAILABLE (LIQUID)",
+                netWorth: "TOTAL NET WORTH", vaultCurrent: "THIS MONTH (CASH)", vaultSavings: "SAVINGS (CASH)",
+                addAssets: "+ Add Assets", withdraw: "Withdrawal", portValue: "TOTAL PORTFOLIO VALUE (ALL KARATS)",
+                store: "STORE (BUY)", liquidate: "LIQUIDATE (SELL)", paid: "PAID (MONTH)", unpaid: "UNPAID (MONTH)",
+                allTime: "ALL TIME PAID", goldPrices: "GOLD PRICES 🟡"
+            },
+            ar: {
+                settings: "إعدادات النظام", exchangeRate: "سعر الصرف",
+                growthGraph: "سجل نمو النظام", recurring: "المهام المتكررة", manageRecurring: "إدارة المصاريف الثابتة",
+                dataMgmt: "إدارة البيانات", download: "⬇ تحميل ملف (محلي)", import: "⬆ استعادة نسخة",
+                reset: "♻ إعادة ضبط المصنع", logout: "تسجيل خروج", close: "إغلاق وحفظ", activity: "النشاط الشهري (15$)",
+                salary: "محفظة الراتب", income: "+ إضافة دخل", transfer: "تحويل", totalCash: "النقد المتاح (سيولة)",
+                netWorth: "صافي الثروة", vaultCurrent: "هذا الشهر (كاش)", vaultSavings: "الادخار (كاش)",
+                addAssets: "+ إضافة أصول", withdraw: "سحب أموال", portValue: "قيمة المحفظة (جميع العيارات)",
+                store: "تخزين (شراء)", liquidate: "تسييل (بيع)", paid: "مدفوع (شهري)", unpaid: "غير مدفوع",
+                allTime: "المدفوعات الكلية", goldPrices: "أسعار الذهب 🟡"
             }
-        }
-        function calculateMoneyAndWishlist() {
-            if(!smokingData.settings) smokingData.settings = {};
-            const price = smokingData.settings.packPrice || 0;
-            const size = smokingData.settings.packSize || 20;
-            const costPerCig = size > 0 ? (price / size) : 0;
-            const baseline = smokingData.settings.historyBaseline || 0;
+        };
 
-            const rec = smokingData.dailyRecords[selectedDate];
-            const count = (rec && rec.periods[0]) ? rec.periods[0].entries.length : 0;
-            document.getElementById('moneySpentDisplay').textContent = (count * costPerCig).toFixed(2);
-            
-            const limit = (rec && rec.limit > 0) ? rec.limit : 0;
-            const savedElem = document.getElementById('moneySavedDisplay');
-            if(limit>0) { const s=(limit*costPerCig)-(count*costPerCig); savedElem.textContent=s.toFixed(2); savedElem.style.color=s>=0?'#00e676':'#ff4444'; }
-            else savedElem.textContent="-";
-
-            let totalSavedMoney = 0;
-            Object.keys(smokingData.dailyRecords).forEach(k => {
-                const c = smokingData.dailyRecords[k].periods[0].entries.length;
-                totalSavedMoney += Math.max(0, baseline - c) * costPerCig;
-            });
-
-            const listDiv = document.getElementById('wishlistList'); listDiv.innerHTML = '';
-            const goals = smokingData.settings.wishlistGoals || [];
-            
-            let remainingMoney = totalSavedMoney;
-            goals.forEach(g => {
-                let fill = 0;
-                if (remainingMoney >= g.cost) { fill = 100; remainingMoney -= g.cost; }
-                else if (remainingMoney > 0) { fill = (remainingMoney / g.cost) * 100; remainingMoney = 0; }
-                
-                const item = document.createElement('div');
-                item.className = `wishlist-item ${fill>=100?'completed':''}`;
-                item.innerHTML = `
-                    <div class="wishlist-meta"><span>${g.name}</span><span>$${g.cost}</span></div>
-                    <div class="wishlist-bar-bg"><div class="wishlist-bar-fill" style="width:${fill}%"></div></div>
-                    <div style="font-size:0.7em; text-align:right; margin-top:2px; color:#aaa;">${fill.toFixed(1)}%</div>
-                    <button class="wishlist-delete" onclick="deleteWishlistGoal(${g.id})">Delete</button>
-                `;
-                listDiv.appendChild(item);
-            });
+        function t(key) {
+            const lang = system.language || 'en';
+            return TRANSLATIONS[lang][key] || key;
         }
 
-        function updateLivingTree() {
-            const icon = document.getElementById('livingTreeIcon');
-            const rec = smokingData.dailyRecords[selectedDate];
-            const count = (rec && rec.periods[0]) ? rec.periods[0].entries.length : 0;
-            const limit = (rec && rec.limit > 0) ? rec.limit : (smokingData.settings.historyBaseline || 20);
-            const ratio = count / limit;
-            
-            icon.className = 'living-tree-icon';
-            if (count === 0 || ratio < 0.5) { icon.textContent = "🌳"; icon.classList.add('tree-green'); }
-            else if (ratio >= 0.5 && ratio <= 1.0) { icon.textContent = "🍂"; icon.classList.add('tree-yellow'); }
-            else { icon.textContent = "🥀"; icon.classList.add('tree-red'); }
-        }
+        let system = { 
+            vaultCurrent: 0, vaultSavings: 0, salary: 0, 
+            quests: [], dayArchives: {}, history: {}, hpMonth: "",
+            exchangeRate: 89500, preferredKarat: 24, storedGoldPrice: 88.0,
+            goldInventory: { 18: 0, 21: 0, 22: 0, 24: 0 },
+            goldCosts: { 18: 0, 21: 0, 22: 0, 24: 0 },
+            goldTransactions: [], 
+            recurringTemplates: [],
+            budgetCap: 0, budgetCurrent: 0,
+            expenses: [], 
+            customRanks: { E: 0, C: 400000, B: 2000000, A: 10000000, S: 50000000, SS: 100000000 },
+            location: { name: "Baalbek", lat: 34.00, lon: 36.21 },
+            language: "en",
+            countryCode: "LB", currencySymbol: "L.L", useKSystem: true
+        };
 
-        function openDetoxModal() { document.getElementById('detoxModal').classList.add('active'); if(!smokingData.settings.historyYears) document.getElementById('historyYearsInput').value=15; if(!smokingData.settings.historyBaseline) document.getElementById('historyBaselineInput').value=40; updateDetoxStats(); }
-        function saveDetoxSettings() { smokingData.settings.historyYears = parseInt(document.getElementById('historyYearsInput').value); smokingData.settings.historyBaseline = parseInt(document.getElementById('historyBaselineInput').value); saveSmokingDataToStorage(); updateDetoxStats(); }
+        let navDate = new Date();
+        let currentOpenDate = null;
+        let currentUser = null;
+        let selectedWithdrawSource = null;
+        let global24kGramPrice = 88.0; 
+        let isSaving = false;
+        let activeVaultKarat = 24; 
+        const karatRatios = { 18: 0.75, 21: 0.875, 22: 0.9167, 24: 1.0 };
+
+        /* AUTH & CORE */
+        document.getElementById('loginBtn').onclick = () => signInWithPopup(auth, provider);
         
-        function switchDetoxTab(tab) {
-            currentDetoxTab = tab;
-            // EDITED: Loop only daily and weekly
-            ['Daily','Weekly'].forEach(t => {
-                const el = document.getElementById('tab'+t);
-                if(el) el.className = (t.toLowerCase()===tab)?'detox-tab active':'detox-tab';
-            });
-            updateDetoxStats();
+        window.logout = () => { if(confirm("Disconnect from System?")) signOut(auth).then(()=>location.reload()); };
+
+        window.hardReset = async () => {
+            if(confirm("⚠ FACTORY RESET ⚠\n\nPermanently delete ALL data?")) {
+                if(currentUser) {
+                    try {
+                        setSaving(true);
+                        system = { 
+                            vaultCurrent: 0, vaultSavings: 0, salary: 0, 
+                            quests: [], dayArchives: {}, history: {}, hpMonth: getSystemDate().substring(0, 7),
+                            exchangeRate: 89500, preferredKarat: 24, storedGoldPrice: 88.0,
+                            goldInventory: { 18: 0, 21: 0, 22: 0, 24: 0 },
+                            goldCosts: { 18: 0, 21: 0, 22: 0, 24: 0 },
+                            goldTransactions: [],
+                            recurringTemplates: [],
+                            budgetCap: 0, budgetCurrent: 0,
+                            expenses: [],
+                            customRanks: { E: 0, C: 400000, B: 2000000, A: 10000000, S: 50000000, SS: 100000000 },
+                            location: { name: "Baalbek", lat: 34.00, lon: 36.21 },
+                            language: "en",
+                            countryCode: "LB", currencySymbol: "L.L", useKSystem: true,
+                            lastUpdated: serverTimestamp()
+                        };
+                        await setDoc(doc(db, "users", currentUser.uid), system);
+                        showToast("System Reset Complete", "success");
+                        location.reload(); 
+                    } catch(e) { showToast("Error during reset", "error"); } finally { setSaving(false); }
+                }
+            }
+        };
+
+        function setSaving(state) {
+            isSaving = state;
+            document.getElementById('saveIndicator').className = state ? 'saving' : '';
+            document.getElementById('savingText').style.display = state ? 'block' : 'none';
         }
 
-        function updateDetoxStats() {
-            const baselineDay = smokingData.settings.historyBaseline || 1;
-            let actual = 0, baseline = 0;
-            const rec = smokingData.dailyRecords[selectedDate];
-
-            const packPrice = smokingData.settings.packPrice || 0;
-            const packSize = smokingData.settings.packSize || 20;
-            const costPerCig = packSize > 0 ? (packPrice / packSize) : 0;
-
-            if (currentDetoxTab === 'daily') {
-                document.getElementById('detoxLoadTitle').textContent = "Daily Load";
-                actual = (rec && rec.periods[0]) ? rec.periods[0].entries.length : 0;
-                baseline = (rec && rec.limit > 0) ? rec.limit : baselineDay;
+        async function fetchWeather() {
+            try {
+                const loc = system.location || { name: "Baalbek", lat: 34.00, lon: 36.21 };
+                document.querySelector('.weather-loc').textContent = `ENV: ${loc.name}`;
                 
-                document.getElementById('detoxCostTitle').textContent = "Daily Cost (Burnt)";
-                document.getElementById('detoxCostVal').textContent = '$' + (actual * costPerCig).toFixed(2);
-            } else {
-                document.getElementById('detoxLoadTitle').textContent = "Weekly Load (Sum Limits)";
-                const now = new Date();
-                const startOfWeek = new Date(now); 
-                startOfWeek.setDate(now.getDate() - now.getDay()); 
-                startOfWeek.setHours(0,0,0,0);
-                
-                for(let i=0; i<7; i++) {
-                    const d = new Date(startOfWeek);
-                    d.setDate(d.getDate() + i);
-                    const dStr = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
-                    
-                    if(smokingData.dailyRecords[dStr]) {
-                         actual += smokingData.dailyRecords[dStr].periods[0].entries.length;
-                         if(smokingData.dailyRecords[dStr].limit > 0) {
-                             baseline += smokingData.dailyRecords[dStr].limit;
-                         }
-                    }
+                const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}&current=temperature_2m,weather_code,wind_speed_10m&daily=weather_code&timezone=auto`);
+                const data = await res.json();
+                const temp = data.current.temperature_2m;
+                const wind = data.current.wind_speed_10m;
+                const widget = document.getElementById('weatherDetail');
+                widget.textContent = `${temp}°C | ${wind}km/h`;
+            } catch(e) {
+                document.getElementById('weatherDetail').textContent = "OFFLINE";
+            }
+        }
+
+        window.syncRateFromAPI = async () => {
+            const country = system.countryCode || 'LB';
+            if(country === 'LB') { alert("Update manually."); return; }
+            const targetCurrency = COUNTRIES[country].currency;
+            document.getElementById('settingRateInput').placeholder = "Fetching...";
+            try {
+                const res = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+                const data = await res.json();
+                if(data.rates && data.rates[targetCurrency]) {
+                    document.getElementById('settingRateInput').value = data.rates[targetCurrency];
+                    showToast(`Synced`, "success");
                 }
-                if(baseline === 0) baseline = 1; 
+            } catch(e) { showToast("Failed", "error"); }
+        };
 
-                document.getElementById('detoxCostTitle').textContent = "Weekly Cost (Burnt)";
-                document.getElementById('detoxCostVal').textContent = '$' + (actual * costPerCig).toFixed(2);
-            }
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentUser = user;
+                document.getElementById('authOverlay').style.display = 'none';
+                document.getElementById('mainView').style.display = 'block';
+                document.getElementById('userEmailDisplay').textContent = user.email;
+                await loadSubCollections(user.uid);
 
-            const percent = Math.min((actual / baseline) * 100, 100);
-            const bar = document.getElementById('detoxProgressBar');
-            bar.style.width = percent + '%';
-            bar.style.background = percent < 50 ? '#00e676' : (percent < 80 ? '#ff9900' : '#ff4444');
-            
-            document.getElementById('detoxCurrentVal').textContent = actual;
-            document.getElementById('detoxBaselineVal').textContent = baseline;
-            document.getElementById('detoxAvoidedToday').textContent = Math.max(0, baseline - actual) + " cigs";
-            document.getElementById('detoxReductionPercent').textContent = Math.max(0, ((baseline - actual) / baseline) * 100).toFixed(1) + "%";
-        }
+                onSnapshot(doc(db, "users", user.uid), (docSnapshot) => {
+                    if (docSnapshot.exists()) {
+                        let data = docSnapshot.data();
+                        
+                        // MIGRATION LOGIC
+                        if(data.goldInventory && (!data.goldTransactions || data.goldTransactions.length === 0)) {
+                             let migratedTrans = [];
+                             for(let k of [18, 21, 22, 24]) {
+                                 if(data.goldInventory[k] > 0) {
+                                     migratedTrans.push({
+                                         id: Date.now() + k,
+                                         date: getSystemDate(),
+                                         karat: k,
+                                         weight: data.goldInventory[k],
+                                         costUSD: data.goldCosts[k] || 0,
+                                         pricePerGramAtBuy: 0
+                                     });
+                                 }
+                             }
+                             data.goldTransactions = migratedTrans;
+                        }
 
-        function saveMoneySettings() { 
-            if(!smokingData.settings) smokingData.settings={}; 
-            smokingData.settings.packPrice = parseFloat(document.getElementById('packPriceInput').value); 
-            smokingData.settings.packSize = parseInt(document.getElementById('packSizeInput').value);
-            saveSmokingDataToStorage(); refreshUI(); 
-        }
-        
-        function saveSmokingDataToStorage() {
-            if (currentUser && smokingData) {
-                db.collection('users').doc(currentUser.uid).set({
-                    smokingData: smokingData
-                }, { merge: true })
-                .then(() => { console.log("Saved to cloud"); })
-                .catch((e) => { console.error("Error saving: ", e); });
-            }
-        }
+                        if(data.vault !== undefined && data.vaultSavings === undefined) {
+                            data.vaultSavings = data.vault; data.vaultCurrent = 0; delete data.vault;
+                        }
+                        
+                        const existingArchives = system.dayArchives || {};
+                        const existingHistory = system.history || {};
 
-        function handleNewCigarette(src) {
-            let target=selectedDate; const now=getDeviceLocalTime();
-            if(src==='today') target=`${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2,'0')}-${now.getDate().toString().padStart(2,'0')}`;
-            let trig=document.getElementById('triggerSelect').value; if(trig==='Other')trig=document.getElementById('customTriggerInput').value; if(src==='today')trig="Quick Log";
-            
-            let isFlagged = false;
-            const existingRecord = smokingData.dailyRecords[target];
-            if(existingRecord && existingRecord.limit > 0) {
-                const p = existingRecord.periods[0];
-                if(p.entries.length > 0) {
-                   const lastTime = p.entries[p.entries.length - 1].timestamp;
-                   const allowedInterval = 57600000 / existingRecord.limit;
-                   const nextAllowedTime = lastTime + allowedInterval;
-                   if(now.getTime() < nextAllowedTime) {
-                       isFlagged = true;
-                   }
-                }
-            }
+                        system = { ...system, ...data };
+                        
+                        // DEFAULTS
+                        if(!system.goldTransactions) system.goldTransactions = [];
+                        if(!system.customRanks) system.customRanks = { E: 0, C: 400000, B: 2000000, A: 10000000, S: 50000000, SS: 100000000 };
+                        if(!system.location) system.location = { name: "Baalbek", lat: 34.00, lon: 36.21 };
+                        if(!system.language) system.language = "en";
+                        if(!system.countryCode) system.countryCode = "LB";
+                        if(system.useKSystem === undefined) system.useKSystem = true;
+                        if(!system.currencySymbol) system.currencySymbol = "L.L";
 
-            const per=getOrCreateCurrentPeriod(target);
-            const btn = src==='today'?document.getElementById('logCigaretteTodayButton'):document.querySelector('.log-btn');
-            
-            if(src==='today' || target===`${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2,'0')}-${now.getDate().toString().padStart(2,'0')}`) {
-                if(btn && btn.getAttribute('data-status')==='cooldown'){if(!confirm("You are in cooling period. Log anyway?"))return;}
-            }
+                        system.dayArchives = existingArchives;
+                        system.history = { ...existingHistory, ...(data.history || {}) };
 
-            per.entries.push({
-                id:now.getTime(), 
-                date:target, 
-                time:now.toLocaleTimeString(), 
-                timestamp:now.getTime(), 
-                reason:trig||"Unspecified",
-                flagged: isFlagged
-            });
+                        if(data.storedGoldPrice) global24kGramPrice = data.storedGoldPrice;
+                        if(!system.exchangeRate || system.exchangeRate < 1) system.exchangeRate = 89500;
 
-            per.entries.sort((a,b)=>a.timestamp-b.timestamp); per.lastActivity=now.getTime();
-            saveSmokingDataToStorage();
-            if(target===selectedDate) refreshUI(); else renderCalendar();
-            updateLogCigaretteButtonState();
-        }
-
-        function deleteEntry(id) {
-            if (confirm("Delete this entry?")) {
-                const p = smokingData.dailyRecords[selectedDate].periods[0];
-                p.entries = p.entries.filter(e => e.id !== id);
-                p.entries.sort((a, b) => a.timestamp - b.timestamp);
-                if (p.entries.length > 0) {
-                    p.lastActivity = p.entries[p.entries.length - 1].timestamp;
-                } else {
-                    p.lastActivity = 0; 
-                }
-                saveSmokingDataToStorage();
-                refreshUI();
-            }
-        }
-
-        function openHealthModal() { document.getElementById('healthModal').classList.add('active'); updateHealthTimeline(); }
-        function openBreathingModal() { document.getElementById('breathingModal').classList.add('active'); startBreathingExercise(); }
-        
-        // --- AUTO HEATMAP & RECOVERY LOGIC (AUTOMATIC) ---
-        let hourlyCountsCached = new Array(24).fill(0);
-        
-        function openHeatmapModal() {
-            document.getElementById('heatmapModal').classList.add('active'); 
-            
-            // 1. حساب البيانات التاريخية (كم مرة دخنت في هذه الساعة سابقاً)
-            hourlyCountsCached = new Array(24).fill(0); 
-            Object.values(smokingData.dailyRecords).forEach(r => {
-                if(r.periods) r.periods[0].entries.forEach(e => {
-                    hourlyCountsCached[new Date(e.timestamp).getHours()]++;
-                });
-            });
-            
-            renderHeatmap1();
-        }
-
-        function renderHeatmap1() {
-            const grid = document.getElementById('heatmapGridOld');
-            grid.innerHTML = '';
-            const max = Math.max(...hourlyCountsCached) || 1;
-            
-            hourlyCountsCached.forEach(v => {
-                const b = document.createElement('div');
-                b.className = 'heatmap-bar';
-                b.style.height = `${(v/max)*100}%`;
-                
-                if(v > 0) {
-                    const countSpan = document.createElement('span');
-                    countSpan.className = 'heatmap-count';
-                    countSpan.innerText = v;
-                    b.appendChild(countSpan);
-                }
-                grid.appendChild(b);
-            });
-        }
-
-        function closeModal(id) { document.getElementById(id).classList.remove('active'); if(id==='breathingModal') clearInterval(breatheInt); }
-        function updateHealthTimeline() {
-            const list=document.getElementById('healthList'); list.innerHTML=''; let last=0;
-            Object.values(smokingData.dailyRecords).forEach(r=>{if(r.periods&&r.periods[0].entries.length) last=Math.max(last, r.periods[0].entries[r.periods[0].entries.length-1].timestamp)});
-            if(!last){document.getElementById('timeSinceLastCig').textContent="No data";return;}
-            const diff=Math.floor((Date.now()-last)/1000); document.getElementById('timeSinceLastCig').textContent=formatDuration(diff);
-            [{s:1200,t:"20 Mins",d:"BP"},{s:28800,t:"8 Hours",d:"CO"},{s:86400,t:"24 Hours",d:"Heart"}].forEach(x=>{list.innerHTML+=`<li class="${diff>=x.s?'achieved':''}"><div class="check-icon">${diff>=x.s?'✅':'🔒'}</div><div><h4>${x.t}</h4><p>${x.d}</p></div></li>`});
-        }
-        let breatheInt;
-        function startBreathingExercise() { const t=document.getElementById('breathingText'); document.getElementById('breathingContainer').classList.add('breathing-active'); let c=0; clearInterval(breatheInt); breatheInt=setInterval(()=>{c++;if(c<=4)t.textContent="Inhale";else if(c<=11)t.textContent="Hold";else if(c<=19)t.textContent="Exhale";if(c>=19)c=0},1000); }
-
-        function renderCalendar() {
-            const y=currentDate.getFullYear(), m=currentDate.getMonth();
-            document.getElementById('currentMonth').textContent=new Date(y,m).toLocaleString('default',{month:'short',year:'numeric'});
-            const g=document.getElementById('calendarDays'); g.innerHTML='';
-            const fd=new Date(y,m,1).getDay(), dim=new Date(y,m+1,0).getDate();
-            for(let i=0;i<fd;i++)g.appendChild(document.createElement('a')).classList.add('inactive');
-            for(let i=1;i<=dim;i++){
-                const a=document.createElement('a'); a.textContent=i; const d=`${y}-${(m+1).toString().padStart(2,'0')}-${i.toString().padStart(2,'0')}`;
-                a.onclick=()=>showTracker(d);
-                const c=(smokingData.dailyRecords[d]?.periods[0]?.entries.length)||0;
-                if(c>0){const d=document.createElement('div');d.className='daily-count-on-calendar';d.textContent=c;a.appendChild(d);}
-                const n=getDeviceLocalTime(); if(d===`${n.getFullYear()}-${(n.getMonth()+1).toString().padStart(2,'0')}-${n.getDate().toString().padStart(2,'0')}`)a.classList.add('today');
-                g.appendChild(a);
-            }
-            updateLogCigaretteButtonState();
-        }
-        function showTracker(d) { selectedDate=d; document.getElementById('trackingDate').textContent=d; document.getElementById('calendarContainer').classList.add('hidden'); document.getElementById('trackerContainer').classList.remove('hidden'); refreshUI(); window.scrollTo({top:0}); }
-        function goBackToCalendar() { document.getElementById('trackerContainer').classList.add('hidden'); document.getElementById('calendarContainer').classList.remove('hidden'); selectedDate=null; renderCalendar(); }
-        function loadSmokingDataFromCloud() { if(currentUser) db.collection('users').doc(currentUser.uid).onSnapshot(d=>{if(d.exists)smokingData=d.data().smokingData||{dailyRecords:{},settings:{}}; if(!document.getElementById('trackerContainer').classList.contains('hidden'))refreshUI(); else renderCalendar();}); }
-        function populateChartSelects() {
-            const m=document.getElementById('trackerDailyTrendChartMonthSelect'), y=document.getElementById('trackerDailyTrendChartYearSelect');
-            if(!m.options.length) ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].forEach((v,i)=>m.innerHTML+=`<option value="${i}">${v}</option>`);
-            let tY,tM; if(selectedDate){const p=selectedDate.split('-');tY=parseInt(p[0]);tM=parseInt(p[1])-1;}else{const n=new Date();tY=n.getFullYear();tM=n.getMonth();}
-            y.innerHTML=''; const ys=new Set(Object.keys(smokingData.dailyRecords).map(k=>new Date(k).getFullYear())); ys.add(new Date().getFullYear()); ys.add(tY);
-            Array.from(ys).sort((a,b)=>b-a).forEach(v=>y.innerHTML+=`<option value="${v}">${v}</option>`);
-            m.value=tM; y.value=tY;
-        }
-        function updateMainChart() {
-            const ctx=document.getElementById('dailyTrendChart'); if(!ctx)return;
-            const m=parseInt(document.getElementById('trackerDailyTrendChartMonthSelect').value), y=parseInt(document.getElementById('trackerDailyTrendChartYearSelect').value);
-            const ds=Object.keys(smokingData.dailyRecords).filter(k=>{const d=new Date(k);return d.getMonth()===m&&d.getFullYear()===y}).sort();
-            const cs=ds.map(k=>smokingData.dailyRecords[k].periods[0].entries.length);
-            if(window.myChart)window.myChart.destroy();
-            window.myChart=new Chart(ctx,{type:'line',data:{labels:ds.map(d=>d.split('-')[2]),datasets:[{label:'Cigs',data:cs.length?cs:[0],borderColor:'#00e676',tension:0.4}]}});
-        }
-        function refreshUI() {
-            if(!selectedDate)return;
-            if(!smokingData.settings)smokingData.settings={};
-            document.getElementById('packPriceInput').value=smokingData.settings.packPrice||0;
-            document.getElementById('packSizeInput').value=smokingData.settings.packSize||20;
-            
-            const rec=smokingData.dailyRecords[selectedDate]||ensureDailyRecordStructure({});
-            document.getElementById('dailyCount').textContent=rec.periods[0].entries.length;
-            calculateMoneyAndWishlist(); updateLivingTree();
-            
-            document.getElementById('dailyNoteTextarea').value=rec.note||'';
-            const ul=document.getElementById('taskList'); ul.innerHTML='';
-            rec.tasks.forEach(t=>{ul.innerHTML+=`<li><input type="checkbox" ${t.completed?'checked':''} onchange="toggleTask(${t.id})"><label>${t.text}</label><button onclick="delTask(${t.id})">×</button></li>`});
-            
-            document.getElementById('dailyLimitInput').value = (rec && rec.limit > 0) ? rec.limit : '';
-            document.getElementById('saveDailyLimitButton').classList.add('hidden');
-
-            populateChartSelects(); updateMainChart();
-            
-            const tb=document.getElementById('dataBody'); tb.innerHTML='';
-            rec.periods[0].entries.forEach((e,i,a)=>{
-                const d=i>0?getTimeDifference(a[i-1].timestamp,e.timestamp):'-';
-                const rowClass = e.flagged ? 'flagged-row' : '';
-                const reasonText = e.reason + (e.flagged ? ' ⚠️' : '');
-                
-                tb.innerHTML+=`<tr class="${rowClass}"><td>${e.time}</td><td>${d}</td><td>${reasonText}</td><td><button class="delete-btn" onclick="deleteEntry(${e.id})">Del</button></td></tr>`
-            });
-            updateLogCigaretteButtonState();
-        }
-
-        function updateLogCigaretteButtonState() {
-            const b1 = document.getElementById('logCigaretteTodayButton');
-            const b2 = document.querySelector('.log-btn');
-            const n = new Date();
-            const tStr = `${n.getFullYear()}-${(n.getMonth()+1).toString().padStart(2,'0')}-${n.getDate().toString().padStart(2,'0')}`;
-            
-            const getS = (d) => {
-                const r = smokingData.dailyRecords[d];
-                const lim = r ? r.limit : 0;
-                let l = 0;
-                if (r && r.periods[0].entries.length > 0) {
-                    l = r.periods[0].entries[r.periods[0].entries.length - 1].timestamp;
-                }
-                
-                let t = 0, c = false; 
-                if(lim > 0 && l > 0){
-                    t = l + (57600000 / lim); 
-                    if(t > Date.now()) c = true;
-                } 
-                return {t, c, l};
-            };
-
-            const s = getS(tStr);
-            
-            if(b1) {
-                if (s.l === 0) {
-                    clearInterval(b1.int);
-                    b1.innerHTML = "Log Cigarette Today";
-                    b1.setAttribute('data-status', 'normal');
-                } else {
-                    runTimer(b1, s.t, s.c, s.l, true);
-                }
-            }
-
-            if(b2 && selectedDate) {
-                const todayFormatted = `${n.getFullYear()}-${(n.getMonth()+1).toString().padStart(2,'0')}-${n.getDate().toString().padStart(2,'0')}`;
-                if(selectedDate === todayFormatted) {
-                    if (s.l === 0) {
-                        clearInterval(b2.int);
-                        b2.innerHTML = "Log New Cigarette";
-                        b2.setAttribute('data-status', 'normal');
+                        recalcTotalsFromHistory(); // Ensure sync
+                        checkMonthRollover(); 
+                        applyLanguage();
+                        render();
+                        updateGoldModalUI(); 
+                        fetchLiveGoldPrice();
+                        fetchWeather();
                     } else {
-                        runTimer(b2, s.t, s.c, s.l, false);
+                        system.hpMonth = getSystemDate().substring(0, 7);
+                        save(true);
                     }
-                } else { 
-                    if(b2.int) clearInterval(b2.int); 
-                    b2.setAttribute('data-status','normal'); 
-                    b2.innerHTML="Log New"; 
+                });
+            } else {
+                document.getElementById('authOverlay').style.display = 'flex';
+                document.getElementById('mainView').style.display = 'none';
+            }
+        });
+
+        async function loadSubCollections(uid) {
+            try {
+                const historySnap = await getDocs(collection(db, "users", uid, "history_log"));
+                historySnap.forEach(doc => {
+                    const d = doc.data();
+                    if(d.month) system.history[d.month] = { val: d.val, rate: d.rate };
+                });
+                const archivesSnap = await getDocs(collection(db, "users", uid, "archived_quests"));
+                archivesSnap.forEach(doc => {
+                    const q = doc.data();
+                    const dateKey = q.targetDate || "Unknown";
+                    if(!system.dayArchives[dateKey]) system.dayArchives[dateKey] = [];
+                    system.dayArchives[dateKey].push({ ...q, docId: doc.id });
+                });
+            } catch (e) { console.error("Error loading sub-collections", e); }
+        }
+
+        async function fetchLiveGoldPrice() {
+            try {
+                const response = await fetch('https://api.gold-api.com/price/XAU');
+                if (!response.ok) throw new Error("Network response was not ok");
+                const data = await response.json();
+                if(data.price) {
+                    global24kGramPrice = data.price / 31.1035;
+                    system.storedGoldPrice = global24kGramPrice; 
+                    const now = new Date();
+                    const dateStr = document.getElementById('lastUpdateText');
+                    if(dateStr) dateStr.textContent = "LAST UPDATE: " + now.toLocaleTimeString();
+                    render(); 
                 }
+            } catch (e) { 
+                if(system.storedGoldPrice) global24kGramPrice = system.storedGoldPrice;
+                const dateStr = document.getElementById('lastUpdateText');
+                if(dateStr) dateStr.textContent = "OFFLINE MODE (STORED PRICE)";
             }
         }
 
-        function runTimer(b, t, c, l, isCal) {
-            clearInterval(b.int);
-            const tick=()=>{
-                if(c){
-                    const r=Math.max(0,t-Date.now()); 
-                    b.innerHTML=(isCal?'Log':'Log')+(r>0?` <span class="cooldown-timer-display">(${formatDuration(r/1000)})</span>`:''); 
-                    b.setAttribute('data-status','cooldown'); 
-                    if(r<=0){clearInterval(b.int);showCooldownNotification();updateLogCigaretteButtonState();}
-                } else {
-                    const e=Math.max(0,Date.now()-l); 
-                    b.innerHTML=(isCal?'Log':'Log')+` <span class="elapsed-counter">${formatDuration(e/1000)}</span>`; 
-                    b.setAttribute('data-status','allowed');
+        // Recalculates total inventory based on transactions to ensure sync
+        function recalcTotalsFromHistory() {
+            let inv = { 18:0, 21:0, 22:0, 24:0 };
+            let costs = { 18:0, 21:0, 22:0, 24:0 };
+            
+            if(system.goldTransactions) {
+                system.goldTransactions.forEach(t => {
+                    if(inv[t.karat] !== undefined) {
+                        inv[t.karat] = Money.add(inv[t.karat], t.weight);
+                        costs[t.karat] = Money.add(costs[t.karat], t.costUSD);
+                    }
+                });
+            }
+            system.goldInventory = inv;
+            system.goldCosts = costs;
+        }
+
+        const save = async (forceFull = false) => {
+            if (currentUser) {
+                setSaving(true);
+                recalcTotalsFromHistory(); 
+                
+                system.vaultCurrent = Money.val(system.vaultCurrent || 0);
+                system.vaultSavings = Money.val(system.vaultSavings || 0);
+                system.storedGoldPrice = global24kGramPrice;
+
+                const payload = { 
+                    vaultCurrent: system.vaultCurrent, vaultSavings: system.vaultSavings,
+                    salary: system.salary, exchangeRate: system.exchangeRate,
+                    preferredKarat: system.preferredKarat, storedGoldPrice: system.storedGoldPrice,
+                    goldInventory: system.goldInventory, goldCosts: system.goldCosts,
+                    goldTransactions: system.goldTransactions || [],
+                    quests: system.quests, hpMonth: system.hpMonth,
+                    recurringTemplates: system.recurringTemplates || [],
+                    budgetCap: system.budgetCap || 0,
+                    budgetCurrent: system.budgetCurrent,
+                    expenses: system.expenses || [], 
+                    customRanks: system.customRanks,
+                    location: system.location,
+                    language: system.language,
+                    countryCode: system.countryCode,
+                    currencySymbol: system.currencySymbol,
+                    useKSystem: system.useKSystem,
+                    lastUpdated: serverTimestamp() 
+                };
+                
+                try {
+                    if(forceFull) await setDoc(doc(db, "users", currentUser.uid), payload);
+                    else await updateDoc(doc(db, "users", currentUser.uid), payload);
+                } catch(e) {
+                    await setDoc(doc(db, "users", currentUser.uid), payload, { merge: true });
+                } finally {
+                    setSaving(false);
                 }
-            }; tick(); b.int=setInterval(tick,1000);
+            }
+        };
+
+        function getNextMonth(yyyy_mm) {
+            let [y, m] = yyyy_mm.split('-').map(Number);
+            m++;
+            if(m > 12) { m = 1; y++; }
+            return `${y}-${String(m).padStart(2,'0')}`;
         }
 
-        function toggleTask(id){const r=smokingData.dailyRecords[selectedDate];const t=r.tasks.find(x=>x.id===id);t.completed=!t.completed;saveSmokingDataToStorage();refreshUI();}
-        function delTask(id){const r=smokingData.dailyRecords[selectedDate];r.tasks=r.tasks.filter(x=>x.id!==id);saveSmokingDataToStorage();refreshUI();}
+        async function checkMonthRollover() {
+            if(isSaving) return; 
+            const currentMonthStr = getSystemDate().substring(0, 7); 
+            if (!system.hpMonth) system.hpMonth = currentMonthStr;
+
+            let storedMonth = system.hpMonth;
+            let needsSave = false;
+
+            while(storedMonth < currentMonthStr) {
+                needsSave = true;
+                const monthVal = Money.add(system.vaultCurrent || 0, system.vaultSavings || 0);
+                
+                system.history[storedMonth] = { val: monthVal, rate: system.exchangeRate };
+                await addDoc(collection(db, "users", currentUser.uid, "history_log"), {
+                    val: monthVal, rate: system.exchangeRate, month: storedMonth, createdAt: serverTimestamp()
+                });
+
+                system.vaultSavings = Money.add(system.vaultSavings || 0, system.vaultCurrent || 0);
+                system.vaultCurrent = 0;
+                system.budgetCurrent = system.budgetCap;
+
+                if(system.recurringTemplates && system.recurringTemplates.length > 0) {
+                    const nextM = getNextMonth(storedMonth);
+                    const [ny, nm] = nextM.split('-').map(Number);
+                    const daysInNextMonth = new Date(ny, nm, 0).getDate();
+
+                    system.recurringTemplates.forEach(template => {
+                        const uniqueId = Date.now() + Math.floor(Math.random() * 1000);
+                        let desiredDay = parseInt(template.targetDay || 1);
+                        let finalDay = Math.min(desiredDay, daysInNextMonth);
+                        
+                        system.quests.push({
+                            id: uniqueId, title: template.title, target: template.target,
+                            current: 0, isDebt: true, targetDate: `${nextM}-${String(finalDay).padStart(2,'0')}`
+                        });
+                    });
+                }
+                storedMonth = getNextMonth(storedMonth);
+            }
+
+            if(needsSave) {
+                system.hpMonth = currentMonthStr;
+                await save();
+                showToast("New Month Initialized", "success");
+            }
+        }
+
+        function parseWish(val) {
+            if (!val) return 0;
+            let str = val.toString().toLowerCase().trim().replace(/,/g, '');
+            let mult = 1;
+            if (str.includes('k')) mult = 1000;
+            if (str.includes('m')) mult = 1000000;
+            let isUSD = str.includes('$');
+            let cleanVal = str.replace(/[^0-9.]/g, '');
+            let number = parseFloat(cleanVal);
+            if (isNaN(number)) return 0;
+            let finalVal = number * mult;
+            if (isUSD) { finalVal = finalVal * system.exchangeRate; }
+            return Money.val(finalVal);
+        }
+
+        function formatVal(v) {
+            const isK = system.useKSystem; 
+            const sym = system.currencySymbol || '';
+            if (isK) {
+                if (v >= 1000000) return (v / 1000000).toFixed(2) + "m";
+                if (v >= 1000) return (v / 1000).toFixed(1) + "k";
+                return Math.floor(v);
+            } else {
+                return v.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 1}) + ' ' + sym;
+            }
+        }
+
+        function getRankInfo(val) {
+            const r = system.customRanks || { E: 0, C: 400000, B: 2000000, A: 10000000, S: 50000000, SS: 100000000 };
+            if (val >= r.SS) return { r: 'SS', c: 'var(--rank-ss)' }; 
+            if (val >= r.S) return { r: 'S', c: 'var(--rank-s)' };   
+            if (val >= r.A) return { r: 'A', c: 'var(--rank-a)' };   
+            if (val >= r.B) return { r: 'B', c: 'var(--rank-b)' };    
+            if (val >= r.C) return { r: 'C', c: 'var(--rank-c)' };     
+            return { r: 'E', c: 'var(--rank-e)' };
+        }
+
+        /* ACTIONS */
+        window.addSalary = async () => {
+            let a = prompt("Add Salary Income:");
+            let val = parseWish(a);
+            if(val > 0) { 
+                system.salary = Money.add(system.salary || 0, Money.val(val / system.exchangeRate)); 
+                await save(); 
+                showToast("Income Added", "success");
+            }
+        };
+
+        window.salaryToVault = async () => {
+            let a = prompt("Transfer to Assets:");
+            if(!a) return;
+            let goldAmount = parseWish(a);
+            let costInUSD = Money.val(goldAmount / system.exchangeRate);
+            if(goldAmount >= 1 && (system.salary || 0) >= costInUSD) {
+                system.salary = Money.sub(system.salary, costInUSD); 
+                await directDeposit(goldAmount); 
+                showToast("Transfer Complete", "success");
+            } else { showToast("Insufficient Salary funds", "error"); }
+        };
+
+        window.startFlowDeposit = async () => { 
+            let a = prompt("Deposit Assets Directly:"); 
+            let val = parseWish(a);
+            if(val > 0) { await directDeposit(val); showToast("Assets Updated", "success"); }
+        };
+
+        async function directDeposit(amount) {
+            if(amount > 0) {
+                system.vaultCurrent = Money.add(system.vaultCurrent || 0, amount);
+                await save();
+            }
+        }
+
+        window.confirmZero = async (type) => {
+            if(confirm(`Clean up remainder?`)) {
+                if(type === 'salary') system.salary = 0; 
+                else {
+                    if(system.vaultCurrent < 1000) system.vaultCurrent = 0;
+                    if(system.vaultSavings < 1000) system.vaultSavings = 0;
+                }
+                await save();
+                showToast("Remainder Cleared", "info");
+            }
+        };
+
+        window.payDebt = async (id) => {
+            let q = system.quests.find(x => x.id == id);
+            if(!q) return;
+            let rate = (system.exchangeRate > 0) ? system.exchangeRate : 89500;
+            let costUSD = Money.val(q.target / rate);
+            
+            if((system.salary || 0) >= costUSD) {
+                if(confirm(`PAY DEBT: "${q.title}"?\nCost: $${costUSD.toFixed(2)}`)) {
+                    setSaving(true);
+                    const batch = writeBatch(db);
+                    const archiveRef = doc(collection(db, "users", currentUser.uid, "archived_quests"));
+                    const archiveData = { ...q, current: q.target, archivedAt: serverTimestamp() };
+                    batch.set(archiveRef, archiveData);
+
+                    const newSalary = Money.sub(system.salary, costUSD);
+                    const newQuests = system.quests.filter(x => x.id != id);
+
+                    system.salary = newSalary; system.quests = newQuests;
+                    batch.update(doc(db, "users", currentUser.uid), { salary: newSalary, quests: newQuests, lastUpdated: serverTimestamp() });
+                    
+                    const d = q.targetDate || getSystemDate();
+                    if(!system.dayArchives[d]) system.dayArchives[d] = [];
+                    system.dayArchives[d].push({ ...archiveData, docId: archiveRef.id });
+                    
+                    await batch.commit();
+                    setSaving(false);
+                    render();
+                    showToast("Debt Paid & Archived", "success");
+                    if(document.getElementById('monthlyView').style.display === 'block') openMonthlyList('pending');
+                }
+            } else { showToast("Insufficient Salary!", "error"); }
+        };
+
+        /* WITHDRAWAL */
+        window.openWithdrawModal = () => {
+            document.getElementById('withdrawModal').style.display = 'flex';
+            document.getElementById('withdrawInput').value = '';
+            document.getElementById('dispCurrent').textContent = formatVal(system.vaultCurrent || 0);
+            document.getElementById('dispSavings').textContent = formatVal(system.vaultSavings || 0);
+        };
+        window.closeWithdrawModal = () => document.getElementById('withdrawModal').style.display = 'none';
+        window.selectSource = (src) => {
+            selectedWithdrawSource = src;
+            document.getElementById('btnSrcCurrent').classList.remove('active');
+            document.getElementById('btnSrcSavings').classList.remove('active');
+            if(src === 'current') document.getElementById('btnSrcCurrent').classList.add('active');
+            if(src === 'savings') document.getElementById('btnSrcSavings').classList.add('active');
+        };
+        window.submitWithdraw = async () => {
+            let val = document.getElementById('withdrawInput').value;
+            let req = parseWish(val);
+            if(req <= 0) return;
+            if(!selectedWithdrawSource) { showToast("Select Source", "error"); return; }
+            
+            if(selectedWithdrawSource === 'savings') {
+                if(!confirm("⚠ PENALTY WARNING ⚠\nWithdraw from SAVINGS?")) return;
+                if((system.vaultSavings || 0) >= req) system.vaultSavings = Money.sub(system.vaultSavings, req);
+                else { showToast("Not enough", "error"); return; }
+            } else {
+                if((system.vaultCurrent || 0) >= req) system.vaultCurrent = Money.sub(system.vaultCurrent, req);
+                else { showToast("Not enough", "error"); return; }
+            }
+            render(); await save(); closeWithdrawModal(); showToast("Withdrawal Confirmed", "success");
+        };
+
+        /* GOLD HISTORY LOGIC (NEW) */
+        let histKarat = 24;
+        window.openGoldHistory = () => {
+            document.getElementById('goldHistoryModal').style.display = 'flex';
+            renderGoldHistory(activeVaultKarat);
+        };
+
+        window.renderGoldHistory = (k) => {
+            histKarat = k;
+            // Update tabs UI
+            document.querySelectorAll('#goldHistoryModal .k-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('histK'+k).classList.add('active');
+
+            const container = document.getElementById('historyList');
+            container.innerHTML = '';
+            
+            // Filter
+            const list = (system.goldTransactions || []).filter(t => t.karat == k);
+            
+            if(list.length === 0) {
+                container.innerHTML = '<div style="padding:20px; text-align:center; color:#666;">No purchase history for '+k+'K</div>';
+                return;
+            }
+
+            // Sort by Date Descending (Newest first)
+            list.sort((a,b) => b.id - a.id);
+
+            // Render
+            const currentMarketPricePerGram = global24kGramPrice * karatRatios[k];
+            
+            list.forEach(item => {
+                const currentVal = item.weight * currentMarketPricePerGram;
+                const profit = currentVal - item.costUSD;
+                const profitPct = (item.costUSD > 0) ? (profit / item.costUSD) * 100 : 0;
+                
+                const plColor = (profit >= 0) ? 'var(--success)' : 'var(--danger)';
+                const sign = (profit >= 0) ? '+' : '';
+
+                container.innerHTML += `
+                <div class="history-list-item">
+                    <div>
+                        <span class="hist-date">${item.date}</span>
+                        <div class="hist-weight">${item.weight.toFixed(2)}g</div>
+                    </div>
+                    <div class="hist-cost-block">
+                        <span class="hist-label">COST</span>
+                        <div class="hist-val">$${item.costUSD.toFixed(2)}</div>
+                        <div class="hist-label" style="margin-top:2px;">AVG: $${(item.costUSD/item.weight).toFixed(1)}/g</div>
+                    </div>
+                    <div class="hist-pl-block">
+                        <span class="hist-label">MARKET: <span class="hist-market">$${currentVal.toFixed(2)}</span></span>
+                        <div class="hist-pl-val" style="color:${plColor}">${sign}${profit.toFixed(2)}</div>
+                        <div style="font-size:0.6rem; color:${plColor}">${sign}${profitPct.toFixed(1)}%</div>
+                    </div>
+                </div>`;
+            });
+        };
+
+        /* GOLD & UI LOGIC */
+        window.showGoldPrices = async () => {
+            document.getElementById('goldModal').style.display = 'flex';
+            document.getElementById('goldLoading').style.display = 'block';
+            document.getElementById('goldContent').style.display = 'none';
+            await fetchLiveGoldPrice();
+            updateGoldModalUI();
+            document.getElementById('goldLoading').style.display = 'none';
+            document.getElementById('goldContent').style.display = 'block';
+        };
+        window.setKarat = async (k) => { system.preferredKarat = k; await save(); updateGoldModalUI(); render(); };
         
-        function saveDailyLimit(){
-            const v=parseInt(document.getElementById('dailyLimitInput').value);
-            if(!smokingData.dailyRecords[selectedDate]) smokingData.dailyRecords[selectedDate] = ensureDailyRecordStructure({});
-            smokingData.dailyRecords[selectedDate].limit=v;
-            saveSmokingDataToStorage();
-            document.getElementById('saveDailyLimitButton').classList.add('hidden');
-            refreshUI();
+        // FIXED GOLD MODAL UI
+        function updateGoldModalUI() {
+            let k = system.preferredKarat || 24;
+            // FIX: Select only inside goldModal
+            document.querySelectorAll('#goldModal .k-btn').forEach(b => b.classList.remove('active'));
+            // Add active class manually
+            const btn = document.getElementById('k' + k);
+            if(btn) btn.classList.add('active');
+
+            const ratio = karatRatios[k];
+            const currentGramPrice = global24kGramPrice * ratio;
+            document.getElementById('dispKaratTitle').textContent = k + 'K';
+            document.getElementById('priceDynamicGram').textContent = '$' + currentGramPrice.toLocaleString(undefined, {minimumFractionDigits:2});
+            document.getElementById('rowOunce').style.display = (k === 24) ? 'flex' : 'none';
+            document.getElementById('rowLira').style.display = (k === 22) ? 'flex' : 'none';
+            if (k === 24) document.getElementById('priceOunce').textContent = '$' + (global24kGramPrice * 31.1035).toLocaleString(undefined, {minimumFractionDigits:2});
+            else if (k === 22) document.getElementById('priceLira').textContent = '$' + ((global24kGramPrice * 0.9167) * 7.216).toLocaleString(undefined, {minimumFractionDigits:2});
         }
 
-        function saveDailyNote(){smokingData.dailyRecords[selectedDate].note=document.getElementById('dailyNoteTextarea').value;saveSmokingDataToStorage();document.getElementById('saveNoteButton').classList.add('hidden');}
-        function resetAllData(){if(confirm("Reset?")){smokingData.dailyRecords={};saveSmokingDataToStorage();renderCalendar();}}
+        window.closeGoldModal = () => document.getElementById('goldModal').style.display = 'none';
+        window.selectGoldVaultTab = (k) => { activeVaultKarat = k; render(); };
 
-        document.addEventListener('DOMContentLoaded', () => {
-            requestNotificationPermission();
-            const pb=document.getElementById('prevMonthBtn'), nb=document.getElementById('nextMonthBtn');
-            pb.onclick=()=>{currentDate.setDate(1);currentDate.setMonth(currentDate.getMonth()-1);renderCalendar();};
-            nb.onclick=()=>{currentDate.setDate(1);currentDate.setMonth(currentDate.getMonth()+1);renderCalendar();};
-            document.getElementById('dailyLimitInput').oninput=()=>document.getElementById('saveDailyLimitButton').classList.remove('hidden');
-            document.getElementById('saveDailyLimitButton').onclick=saveDailyLimit;
-            document.getElementById('dailyNoteTextarea').oninput=()=>document.getElementById('saveNoteButton').classList.remove('hidden');
-            document.getElementById('saveNoteButton').onclick=saveDailyNote;
-            document.getElementById('addTaskButton').onclick=()=>{const t=document.getElementById('taskInput').value;if(t){if(!smokingData.dailyRecords[selectedDate].tasks)smokingData.dailyRecords[selectedDate].tasks=[];smokingData.dailyRecords[selectedDate].tasks.push({id:Date.now(),text:t,completed:false});saveSmokingDataToStorage();refreshUI();document.getElementById('taskInput').value='';}};
-            document.addEventListener('visibilitychange',()=>!document.hidden&&updateLogCigaretteButtonState());
-            document.getElementById('trackerDailyTrendChartMonthSelect').onchange=updateMainChart;
-            document.getElementById('trackerDailyTrendChartYearSelect').onchange=updateMainChart;
-        });
+        let currentGoldTransType = null;
+        window.openGoldTransaction = (type) => {
+            currentGoldTransType = type;
+            const title = document.getElementById('goldTransTitle');
+            const btn = document.getElementById('btnConfirmGoldTrans');
+            const manualCostDiv = document.getElementById('divManualCost');
+            
+            document.getElementById('goldTransInput').value = '';
+            document.getElementById('goldManualCostInput').value = '';
+            document.getElementById('goldTransValuePreview').textContent = '$0.00';
+
+            if(type === 'buy') {
+                title.textContent = `STORE GOLD (${activeVaultKarat}K)`;
+                btn.textContent = "CONFIRM PURCHASE"; btn.style.background = "var(--gold)";
+                manualCostDiv.style.display = 'block';
+            } else {
+                title.textContent = `LIQUIDATE GOLD (${activeVaultKarat}K)`;
+                btn.textContent = "CONFIRM SALE"; btn.style.background = "var(--success)";
+                manualCostDiv.style.display = 'none';
+            }
+            document.getElementById('goldTransactionModal').style.display = 'flex';
+            
+            document.getElementById('goldTransInput').oninput = () => {
+                let w = parseFloat(document.getElementById('goldTransInput').value) || 0;
+                let price = (global24kGramPrice * karatRatios[activeVaultKarat]);
+                document.getElementById('goldTransValuePreview').textContent = '$' + (w*price).toLocaleString(undefined, {minimumFractionDigits:2});
+                if(type === 'buy') document.getElementById('goldManualCostInput').value = (w*price).toFixed(2);
+            };
+        };
+        window.closeGoldTransModal = () => document.getElementById('goldTransactionModal').style.display = 'none';
+        
+        document.getElementById('btnConfirmGoldTrans').onclick = async () => {
+            let w = parseFloat(document.getElementById('goldTransInput').value);
+            if(!w || w <= 0) return;
+            let rate = system.exchangeRate || 89500;
+
+            if(currentGoldTransType === 'buy') {
+                let manualUSD = parseFloat(document.getElementById('goldManualCostInput').value);
+                if(!manualUSD || manualUSD <= 0) return;
+                let totalCostLira = manualUSD * rate;
+                let totalAvailable = Money.add(system.vaultSavings || 0, system.vaultCurrent || 0);
+
+                if(totalAvailable >= totalCostLira) {
+                    if(confirm(`Confirm Purchase?\n${w}g (${activeVaultKarat}K)\nCOST: $${manualUSD.toFixed(2)}`)) {
+                        let remainingCost = totalCostLira;
+                        if(system.vaultSavings > 0) {
+                            if(system.vaultSavings >= remainingCost) { system.vaultSavings = Money.sub(system.vaultSavings, remainingCost); remainingCost = 0; }
+                            else { remainingCost = Money.sub(remainingCost, system.vaultSavings); system.vaultSavings = 0; }
+                        }
+                        if(remainingCost > 0) system.vaultCurrent = Money.sub(system.vaultCurrent, remainingCost);
+                        
+                        if(!system.goldTransactions) system.goldTransactions = [];
+                        system.goldTransactions.push({
+                            id: Date.now(),
+                            date: getSystemDate(),
+                            karat: activeVaultKarat,
+                            weight: w,
+                            costUSD: manualUSD,
+                            pricePerGramAtBuy: manualUSD / w
+                        });
+
+                        await save(); closeGoldTransModal(); render(); showToast("Gold Stored", "success");
+                        // REFRESH HISTORY IF OPEN
+                        if(document.getElementById('goldHistoryModal').style.display === 'flex') renderGoldHistory(activeVaultKarat);
+                    }
+                } else { showToast("Insufficient Funds", "error"); }
+
+            } else {
+                if((system.goldInventory[activeVaultKarat] || 0) >= w) {
+                    let gramPriceUSD = global24kGramPrice * karatRatios[activeVaultKarat];
+                    
+                    if(confirm(`Confirm LIQUIDATION?\n${w}g\nValue: $${(w*gramPriceUSD).toFixed(2)}`)) {
+                        
+                        let relevantTrans = system.goldTransactions.filter(t => t.karat == activeVaultKarat).sort((a,b) => b.id - a.id);
+                        let weightToSell = w;
+                        
+                        for(let trans of relevantTrans) {
+                            if(weightToSell <= 0) break;
+                            if(trans.weight <= weightToSell) {
+                                weightToSell = Money.sub(weightToSell, trans.weight);
+                                system.goldTransactions = system.goldTransactions.filter(t => t.id !== trans.id);
+                            } else {
+                                let ratioSold = weightToSell / trans.weight;
+                                let costRemoved = trans.costUSD * ratioSold;
+                                trans.weight = Money.sub(trans.weight, weightToSell);
+                                trans.costUSD = Money.sub(trans.costUSD, costRemoved);
+                                weightToSell = 0;
+                            }
+                        }
+
+                        system.vaultCurrent = Money.add(system.vaultCurrent || 0, (w * gramPriceUSD) * rate);
+                        await save(); closeGoldTransModal(); render(); showToast("Gold Liquidated", "success");
+                        if(document.getElementById('goldHistoryModal').style.display === 'flex') renderGoldHistory(activeVaultKarat);
+                    }
+                } else { showToast("Insufficient Gold", "error"); }
+            }
+        };
+
+        window.registerQuest = async (isDebt) => {
+            let t = document.getElementById('qTitle').value;
+            let g = document.getElementById('qTarget').value;
+            let d = document.getElementById('qDate').value;
+            let isRecurring = document.getElementById('qRecurring').checked;
+            
+            if(!d) {
+                let year = navDate.getFullYear(); let month = navDate.getMonth() + 1;
+                let lastDay = new Date(year, month, 0).getDate();
+                d = `${year}-${String(month).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+            }
+            let amount = parseWish(g);
+            if(t && amount > 0) {
+                const uniqueId = Date.now() + Math.floor(Math.random() * 1000);
+                system.quests.push({ id: uniqueId, title: t, target: amount, current: 0, isDebt: true, targetDate: d });
+                if(isRecurring) {
+                    if(!system.recurringTemplates) system.recurringTemplates = [];
+                    const day = d.split('-')[2];
+                    system.recurringTemplates.push({ title: t, target: amount, targetDay: day, createdAt: Date.now() });
+                }
+                await save();
+                document.getElementById('qTitle').value = ''; document.getElementById('qTarget').value = '';
+                openMonthlyList('pending'); showToast("Record Added", "success");
+            }
+        };
+
+        // EDIT DEBT FUNCTION
+        window.editDebt = async (id) => {
+            let q = system.quests.find(x => x.id === id);
+            if(!q) return;
+            
+            // Show current value in prompt for reference
+            let currentVal = (system.useKSystem) ? formatVal(q.target) : q.target;
+            
+            let input = prompt(`EDIT AMOUNT FOR: ${q.title}\nCurrent: ${currentVal}\n\nEnter NEW TOTAL amount (e.g. $80, 50k, 2m):`);
+            
+            if(input !== null && input.trim() !== "") {
+                let newVal = parseWish(input); // Reuse existing parser
+                if(newVal > 0) {
+                    q.target = newVal;
+                    await save();
+                    openMonthlyList('pending'); // Refresh view
+                    showToast("Debt Updated", "success");
+                } else {
+                    showToast("Invalid Amount", "error");
+                }
+            }
+        };
+
+        window.discardQuest = async (id) => {
+            if(confirm("Discard?")) {
+                let idx = system.quests.findIndex(x => x.id === id);
+                if(idx !== -1) { system.quests.splice(idx,1); await save(); openMonthlyList('pending'); }
+            }
+        };
+        window.deleteArchivedDebt = async (date, id) => {
+            if(confirm("Permanently purge?")) {
+                const quest = system.dayArchives[date].find(q => q.id === id);
+                if (quest && quest.docId) {
+                    try { setSaving(true); await deleteDoc(doc(db, "users", currentUser.uid, "archived_quests", quest.docId)); } 
+                    catch(e) {} finally { setSaving(false); }
+                }
+                system.dayArchives[date] = system.dayArchives[date].filter(q => q.id !== id);
+                if(system.dayArchives[date].length === 0) delete system.dayArchives[date];
+                render();
+                if(document.getElementById('monthlyView').style.display === 'block') openMonthlyList('paid');
+            }
+        };
+
+        window.openRecurringList = () => {
+            document.getElementById('recurringModal').style.display = 'flex';
+            const list = document.getElementById('recurringList');
+            list.innerHTML = '';
+            if(!system.recurringTemplates || system.recurringTemplates.length === 0) { list.innerHTML = '<div style="color:#666; font-size:0.7rem;">No fixed expenses.</div>'; return; }
+            system.recurringTemplates.forEach((tpl, idx) => {
+                list.innerHTML += `<div class="recurring-item"><span>${tpl.title} (${formatVal(tpl.target)}) - Day ${tpl.targetDay||'01'}</span><button class="btn-del-rec" onclick="deleteRecurring(${idx})">DEL</button></div>`;
+            });
+        };
+        window.deleteRecurring = async (idx) => {
+            if(confirm("Stop recurring expense?")) { system.recurringTemplates.splice(idx, 1); await save(); openRecurringList(); }
+        };
+
+        window.openMonthlyList = (type) => {
+            const container = document.getElementById('monthlyListContainer');
+            const title = document.getElementById('monthlyViewTitle');
+            const addSec = document.getElementById('addDebtSection');
+            const year = navDate.getFullYear(); const month = String(navDate.getMonth() + 1).padStart(2,'0');
+            const currentMonthPrefix = `${year}-${month}`;
+            const monthName = navDate.toLocaleString('default', {month:'long'}).toUpperCase();
+
+            document.getElementById('monthlyView').style.display = 'block';
+            container.innerHTML = '';
+            let rate = (system.exchangeRate > 0) ? system.exchangeRate : 89500;
+
+            if(type === 'pending') {
+                title.textContent = `${t('unpaid')}: ${monthName} ${year}`;
+                addSec.style.display = 'block';
+                let list = system.quests.filter(q => q.isDebt && q.targetDate && q.targetDate.startsWith(currentMonthPrefix));
+                if(list.length === 0) container.innerHTML = `<div style="text-align:center; color:#666; margin-top:30px;">NO DATA</div>`;
+                list.sort((a,b) => new Date(a.targetDate) - new Date(b.targetDate));
+                list.forEach(q => {
+                    container.innerHTML += `<div class="quest-card" style="border-left: 4px solid var(--danger)">
+                        <div style="font-size:0.6rem; color:#666;">${q.targetDate}</div>
+                        <div style="font-weight:bold; color:white; margin:5px 0;">${q.title.toUpperCase()}</div>
+                        <div style="font-size:0.8rem; font-family:monospace; display:flex; justify-content:space-between;">
+                            <span>${formatVal(q.target)}</span><span>$${(q.target/rate).toFixed(2)}</span>
+                        </div>
+                        <button class="btn-pay" onclick="payDebt(${q.id})">PAY (FROM SALARY)</button>
+                        <div style="margin-top:10px; text-align:right;">
+                            <button class="discard-btn" style="color:var(--mana); border-color:var(--mana); margin-right:5px;" onclick="editDebt(${q.id})">Edit</button>
+                            <button class="discard-btn" onclick="discardQuest(${q.id})">Discard</button>
+                        </div>
+                    </div>`;
+                });
+            } else {
+                title.textContent = `${t('paid')}: ${monthName} ${year}`;
+                addSec.style.display = 'none';
+                let monthlyPaid = [];
+                if(system.dayArchives) Object.keys(system.dayArchives).forEach(k => { if(k.startsWith(currentMonthPrefix)) system.dayArchives[k].forEach(q => monthlyPaid.push({...q, dateKey: k})); });
+                if(monthlyPaid.length === 0) container.innerHTML = `<div style="text-align:center; color:#666; margin-top:30px;">NO DATA</div>`;
+                monthlyPaid.sort((a,b) => new Date(b.dateKey) - new Date(a.dateKey));
+                monthlyPaid.forEach(q => {
+                    container.innerHTML += `<div class="quest-card archive-debt">
+                        <div style="font-size:0.65rem; color:var(--debt-color);">[PAID] ${q.dateKey}</div>
+                        <div style="font-weight:bold; margin-top:5px;">${q.title}</div>
+                        <div style="font-family:monospace;">${formatVal(q.target)} ($${(q.target/rate).toFixed(2)})</div>
+                        <button class="discard-btn" onclick="deleteArchivedDebt('${q.dateKey}', ${q.id})">Purge</button>
+                    </div>`;
+                });
+            }
+        };
+
+        // SETTINGS & OTHER
+        window.openSettings = () => {
+            document.getElementById('mainSettingsMenu').style.display = 'block';
+            document.getElementById('settingsModal').style.display = 'flex';
+            document.getElementById('settingRateInput').value = system.exchangeRate;
+            document.getElementById('countrySelector').value = system.countryCode || 'LB';
+            document.getElementById('activeCurrencyDisplay').textContent = (system.currencySymbol || 'L.L');
+            document.getElementById('activeLocDisplay').textContent = system.location ? system.location.name : 'Unknown';
+            populateRankInputs();
+            drawGrowthGraph();
+        }
+
+        // FIXED: POPULATE INPUTS ON LOAD
+        function populateRankInputs() {
+            if(system.customRanks) {
+                document.getElementById('rankE').value = system.customRanks.E || 0;
+                document.getElementById('rankC').value = system.customRanks.C || 0;
+                document.getElementById('rankB').value = system.customRanks.B || 0;
+                document.getElementById('rankA').value = system.customRanks.A || 0;
+                document.getElementById('rankS').value = system.customRanks.S || 0;
+                document.getElementById('rankSS').value = system.customRanks.SS || 0;
+            }
+            if(system.location) {
+                document.getElementById('locName').value = system.location.name;
+                document.getElementById('locLat').value = system.location.lat;
+                document.getElementById('locLon').value = system.location.lon;
+            }
+        }
+
+        window.saveCustomRanks = async () => {
+            system.customRanks = {
+                E: parseFloat(document.getElementById('rankE').value) || 0,
+                C: parseFloat(document.getElementById('rankC').value) || 0,
+                B: parseFloat(document.getElementById('rankB').value) || 0,
+                A: parseFloat(document.getElementById('rankA').value) || 0,
+                S: parseFloat(document.getElementById('rankS').value) || 0,
+                SS: parseFloat(document.getElementById('rankSS').value) || 0
+            };
+            system.location = {
+                name: document.getElementById('locName').value || 'Unknown',
+                lat: parseFloat(document.getElementById('locLat').value) || 0,
+                lon: parseFloat(document.getElementById('locLon').value) || 0
+            };
+            await save();
+            showToast("Config Saved", "success");
+            render();
+        };
+
+        window.closeSettings = async () => {
+            let nRate = parseFloat(document.getElementById('settingRateInput').value);
+            if(nRate >= 1) system.exchangeRate = nRate;
+            await save();
+            showToast("Settings Saved", "success");
+            document.getElementById('settingsModal').style.display = 'none';
+            fetchWeather();
+            render();
+        }
+
+        window.applyCountryPreset = (code) => {
+            const data = COUNTRIES[code];
+            if(data) {
+                document.getElementById('locName').value = data.city;
+                document.getElementById('locLat').value = data.lat;
+                document.getElementById('locLon').value = data.lon;
+                system.countryCode = code;
+                system.currencySymbol = data.symbol;
+                system.useKSystem = data.useK;
+                system.location = { name: data.city, lat: data.lat, lon: data.lon };
+                document.getElementById('activeCurrencyDisplay').textContent = data.symbol;
+                document.getElementById('activeLocDisplay').textContent = data.city;
+            }
+        };
+
+        window.toggleConfigMode = () => {
+            const p = document.getElementById('configPanel');
+            p.style.display = (p.style.display === 'none') ? 'block' : 'none';
+        }
+
+        window.toggleLanguage = () => {
+            system.language = (system.language === 'en') ? 'ar' : 'en';
+            document.getElementById('langBtn').textContent = (system.language === 'en') ? "SWITCH TO ARABIC" : "SWITCH TO ENGLISH";
+            applyLanguage();
+        }
+
+        function applyLanguage() {
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                el.textContent = t(key);
+            });
+            document.body.style.direction = (system.language === 'ar') ? 'rtl' : 'ltr';
+        }
+
+        window.exportData = () => {
+            const backup = { system: system, timestamp: new Date().toISOString(), version: "6.2" };
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backup));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "system_v6.2_" + getSystemDate() + ".json");
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+            showToast("Download Started", "success");
+        };
+
+        window.importData = (input) => {
+            const file = input.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if(data.system && confirm("Overwrite current system?")) {
+                        setSaving(true);
+                        system = { ...system, ...data.system };
+                        await save(true); 
+                        alert("Backup Restored. Reloading.");
+                        location.reload();
+                    }
+                } catch(err) { showToast("Invalid File", "error"); } finally { setSaving(false); }
+            };
+            reader.readAsText(file);
+        };
+
+        /* GRAPH - ADDED CURRENT MONTH */
+        function drawGrowthGraph() {
+            const svg = document.getElementById('chartSvg');
+            svg.innerHTML = ''; 
+            const hKeys = Object.keys(system.history).sort();
+            
+            // Build data points
+            let dataPoints = hKeys.map(k => {
+                const entry = system.history[k];
+                return { month: k, val: (entry.val / entry.rate) }; 
+            });
+
+            // Add Current Month (Simulated)
+            const currentTotal = Money.add(system.vaultCurrent || 0, system.vaultSavings || 0);
+            dataPoints.push({ month: "NOW", val: (currentTotal / system.exchangeRate) });
+
+            if(dataPoints.length < 2) {
+                svg.innerHTML = '<text x="50%" y="50%" fill="#666" text-anchor="middle" font-size="10">Not Enough Data</text>';
+                return;
+            }
+
+            let minVal = Math.min(...dataPoints.map(d => d.val));
+            let maxVal = Math.max(...dataPoints.map(d => d.val));
+            if(minVal === maxVal) { minVal = 0; maxVal = maxVal * 1.5; }
+
+            const width = svg.clientWidth;
+            const height = svg.clientHeight;
+            const padding = 20;
+            let pointsStr = "";
+            
+            dataPoints.forEach((d, i) => {
+                const x = padding + (i / (dataPoints.length - 1)) * (width - (padding * 2));
+                const y = height - padding - ((d.val - minVal) / (maxVal - minVal)) * (height - (padding * 2));
+                pointsStr += `${x},${y} `;
+                
+                const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                circle.setAttribute("cx", x); circle.setAttribute("cy", y); circle.setAttribute("r", 3);
+                circle.classList.add("graph-point");
+                
+                circle.onmouseover = (e) => {
+                    const tt = document.getElementById('graphTooltip');
+                    tt.style.display = 'block';
+                    tt.style.left = (x + 10) + 'px'; tt.style.top = (y - 20) + 'px';
+                    tt.textContent = `${d.month}: $${d.val.toFixed(0)}`;
+                };
+                circle.onmouseout = () => { document.getElementById('graphTooltip').style.display = 'none'; };
+                svg.appendChild(circle);
+            });
+
+            const polyline = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+            polyline.setAttribute("points", pointsStr);
+            svg.prepend(polyline);
+        }
+
+        function render() {
+            const todayStr = getSystemDate(); 
+            let rate = system.exchangeRate || 89500;
+            const vCurrent = (system.vaultCurrent || 0);
+            const vSavings = (system.vaultSavings || 0);
+            
+            // Calc Inventory from Transactions
+            let totalPortfolioValueUSD = 0; let totalPortfolioCostUSD = 0;
+            if(system.goldInventory) for(let [k, g] of Object.entries(system.goldInventory)) totalPortfolioValueUSD += g * (global24kGramPrice * karatRatios[k]);
+            if(system.goldCosts) for(let [k, c] of Object.entries(system.goldCosts)) totalPortfolioCostUSD += c;
+
+            document.getElementById('portTotalVal').textContent = '$' + totalPortfolioValueUSD.toLocaleString(undefined, {minimumFractionDigits:2});
+            document.getElementById('portTotalSpent').textContent = '$' + totalPortfolioCostUSD.toLocaleString(undefined, {minimumFractionDigits:2});
+            let profit = totalPortfolioValueUSD - totalPortfolioCostUSD;
+            const profitEl = document.getElementById('portProfit');
+            profitEl.textContent = (profit >= 0 ? "+" : "") + '$' + profit.toLocaleString(undefined, {minimumFractionDigits:2});
+            profitEl.className = 'portfolio-profit ' + (profit >= 0 ? 'profit-plus' : 'profit-minus');
+
+            let totalGoldValueLira = totalPortfolioValueUSD * rate;
+            const totalCashAvailable = vCurrent + vSavings;
+            const totalNetWorth = totalCashAvailable + totalGoldValueLira;
+            
+            document.getElementById('realNetWorth').innerHTML = `${formatVal(totalNetWorth)} <span style="font-size:0.6rem; color:#ccc;">($${(totalNetWorth/rate).toLocaleString(undefined, {minimumFractionDigits:2})})</span>`;
+            document.getElementById('totalAssets').textContent = formatVal(totalCashAvailable);
+            document.getElementById('totalUSD').textContent = `$${(totalCashAvailable/rate).toLocaleString(undefined, {minimumFractionDigits:2})}`;
+            document.getElementById('vaultCurrentDisplay').textContent = formatVal(vCurrent);
+            document.getElementById('vaultCurrentUSD').textContent = `$${(vCurrent/rate).toLocaleString(undefined, {minimumFractionDigits:2})}`;
+
+            const hpBase = 15; let currentMonthUSD = vCurrent / rate; 
+            let hpLevel = Math.floor(currentMonthUSD / hpBase) + 1;
+            let hpPerc = ((currentMonthUSD % hpBase) / hpBase) * 100;
+            const hpFill = document.getElementById('hpFill');
+            hpFill.style.width = hpPerc + "%";
+            document.getElementById('hpText').textContent = `LVL ${hpLevel} | $${(currentMonthUSD % hpBase).toFixed(2)}`;
+            hpFill.className = 'hp-fill ' + (hpLevel%3===1 ? 'lvl-1' : hpLevel%3===2 ? 'lvl-2' : 'lvl-3');
+            
+            let activeKarat = system.preferredKarat || 24;
+            let activeGramPrice = global24kGramPrice * karatRatios[activeKarat];
+            document.getElementById('barKaratIndicator').textContent = activeKarat + 'K ⚙️';
+            let gramsOwned = (activeGramPrice > 0) ? (totalCashAvailable / rate) / activeGramPrice : 0;
+            if (gramsOwned < 0.01) gramsOwned = 0;
+            const goldFill = document.getElementById('goldFill');
+            goldFill.style.width = ((gramsOwned % 1) * 100) + "%";
+            document.getElementById('goldText').textContent = `Reserve: ${gramsOwned.toFixed(2)}g (${activeKarat}K)`;
+
+            document.querySelectorAll('.g-tab').forEach(t => t.classList.remove('active'));
+            document.getElementById('gt' + activeVaultKarat).classList.add('active');
+            let vGrams = system.goldInventory[activeVaultKarat] || 0;
+            let vCost = system.goldCosts[activeVaultKarat] || 0;
+            let avgCost = (vGrams > 0.01) ? vCost / vGrams : 0;
+            let marketPrice = global24kGramPrice * karatRatios[activeVaultKarat];
+            document.getElementById('dcaAvgCost').textContent = '$' + avgCost.toLocaleString(undefined, {minimumFractionDigits:2});
+            document.getElementById('dcaAvgCost').style.color = (avgCost > 0 && marketPrice >= avgCost) ? "var(--success)" : "#ccc";
+            document.getElementById('dcaMarketPrice').textContent = '$' + marketPrice.toLocaleString(undefined, {minimumFractionDigits:2});
+            document.getElementById('goldVaultGrams').textContent = vGrams.toFixed(2) + "g";
+            document.getElementById('goldVaultVal').textContent = "$" + (vGrams*marketPrice).toLocaleString(undefined, {minimumFractionDigits:2});
+            document.getElementById('goldVaultFill').style.width = Math.min((vGrams / 20) * 100, 100) + "%";
+            document.getElementById('goldVaultText').textContent = (vGrams > 0) ? "SECURE" : "EMPTY";
+
+            const playerRank = getRankInfo(totalNetWorth);
+            const pBadge = document.getElementById('playerRankBadge');
+            pBadge.textContent = "RANK " + playerRank.r;
+            pBadge.style.color = playerRank.c;
+            pBadge.style.boxShadow = `0 0 10px ${playerRank.c}`;
+            document.getElementById('playerLevel').textContent = hpLevel;
+            document.getElementById('salaryDisplay').textContent = `$${(system.salary || 0).toLocaleString(undefined, {minimumFractionDigits:2})}`;
+            document.getElementById('displayRate').textContent = rate.toLocaleString();
+            
+            const salInGold = (system.salary || 0) * rate;
+            document.getElementById('zeroSalary').style.display = (salInGold > 0.1 && salInGold < 1000) ? 'inline-block' : 'none';
+            document.getElementById('zeroVault').style.display = (totalCashAvailable > 0.1 && totalCashAvailable < 1000) ? 'block' : 'none';
+
+            const year = navDate.getFullYear(); const month = String(navDate.getMonth() + 1).padStart(2,'0');
+            const currentMonthPrefix = `${year}-${month}`;
+            let unpaidList = system.quests.filter(q => q.isDebt && q.targetDate && q.targetDate.startsWith(currentMonthPrefix));
+            let unpaidGold = unpaidList.reduce((acc, q) => acc + q.target, 0);
+            document.getElementById('countUnpaidDebts').textContent = unpaidList.length;
+            document.getElementById('valUnpaidDebts').textContent = `$${(unpaidGold/rate).toLocaleString(undefined, {minimumFractionDigits:2})}`;
+
+            let paidCount = 0; let paidGold = 0;
+            if(system.dayArchives) Object.keys(system.dayArchives).forEach(k => { if(k.startsWith(currentMonthPrefix)) system.dayArchives[k].forEach(q => { paidCount++; paidGold += q.target; }); });
+            document.getElementById('countPaidDebts').textContent = paidCount;
+            document.getElementById('valPaidDebts').textContent = `$${(paidGold/rate).toLocaleString(undefined, {minimumFractionDigits:2})}`;
+
+            let allTimeCount = 0; let allTimeVal = 0;
+            if(system.dayArchives) Object.values(system.dayArchives).forEach(list => list.forEach(q => { allTimeCount++; allTimeVal += q.target; }));
+            document.getElementById('countAllPaid').textContent = allTimeCount;
+            document.getElementById('valAllPaid').textContent = `$${(allTimeVal/rate).toLocaleString(undefined, {minimumFractionDigits:2})}`;
+
+            drawCalendar();
+        }
+
+        function drawCalendar() {
+            const grid = document.getElementById('daysGrid'); grid.innerHTML = '';
+            document.getElementById('monthTitle').textContent = navDate.toLocaleString('default', {month:'long', year:'numeric'}).toUpperCase();
+            const todayStr = getSystemDate(); 
+            const year = navDate.getFullYear(); const month = navDate.getMonth();
+            const first = new Date(year, month, 1).getDay(); const last = new Date(year, month+1, 0).getDate();
+            for(let i=0; i<first; i++) grid.innerHTML += '<div></div>';
+            for(let i=1; i<=last; i++) {
+                const currentDayStr = `${year}-${String(month+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
+                const has = system.dayArchives && system.dayArchives[currentDayStr] && system.dayArchives[currentDayStr].length > 0;
+                const isToday = (currentDayStr === todayStr);
+                const cell = document.createElement('div');
+                cell.className = `day-cell ${has ? 'has-completed' : ''} ${isToday ? 'today' : ''}`;
+                cell.textContent = i; cell.onclick = () => openDay(currentDayStr);
+                grid.appendChild(cell);
+            }
+        }
+
+        window.openDay = (d) => {
+            currentOpenDate = d;
+            document.getElementById('dayView').style.display = 'block';
+            document.getElementById('dayTitle').textContent = d;
+            const l = document.getElementById('dayList'); l.innerHTML = '';
+            const rate = system.exchangeRate > 0 ? system.exchangeRate : 89500;
+            if(system.dayArchives && system.dayArchives[d]) {
+                system.dayArchives[d].forEach(q => {
+                    l.innerHTML += `<div class="quest-card archive-debt"><div style="font-size:0.65rem; color:var(--debt-color);">[PAID] ARCHIVE</div><div style="font-weight:bold; margin-top:5px;">${q.title}</div><div style="font-family:monospace;">${formatVal(q.target)} ($${(q.target/rate).toFixed(2)})</div><button class="discard-btn" onclick="deleteArchivedDebt('${d}', ${q.id})">Purge</button></div>`;
+                });
+            }
+        };
+
+        window.closeViews = () => { document.querySelectorAll('.full-view').forEach(v => v.style.display='none'); render(); };
+        window.changeMonth = (s) => { navDate.setDate(1); navDate.setMonth(navDate.getMonth() + s); drawCalendar(); render(); };
     </script>
 </body>
 </html>
