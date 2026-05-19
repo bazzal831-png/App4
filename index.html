@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Smoking Tracker (Local Storage Mode)</title>
+    <title>Smoking Tracker - Monitoring & Interval</title>
     
     <meta name="theme-color" content="#262626">
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3665/3665924.png">
@@ -12,12 +12,8 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
-        /* --- CORE STYLES (Identical to Original) --- */
-        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; background-color: #f4f4f4; margin: 0; padding-top: 20px; overflow-x: hidden; overflow-y: auto; }
-        
-        /* Removed Login & Offline Styles as they are not needed for Local Mode */
-        
-        #userInfo { position: absolute; top: 10px; right: 10px; font-size: 0.8em; color: #555; display: flex; align-items: center; gap: 10px; }
+        /* --- CORE STYLES --- */
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; background-color: #f4f4f4; margin: 0; padding-top: 20px; overflow-x: hidden; }
         
         /* Calendar */
         .calendar-container { background-color: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); padding: 20px; width: 300px; margin: 40px auto 20px; display: flex; flex-direction: column; align-items: center; }
@@ -26,151 +22,76 @@
         .calendar-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 5px; color: #777; width: 100%; }
         .calendar-weekdays div { text-align: center; padding: 8px 0; font-size: 0.9em; }
         .calendar-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; width: 100%; }
-        .calendar-days a { position: relative; display: block; text-decoration: none; color: inherit; width: 100%; padding: 5px 0; border-radius: 5px; text-align: center; cursor: pointer; transition: background-color 0.3s ease; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; min-height: 40px; }
+        .calendar-days a { position: relative; display: block; text-decoration: none; color: inherit; width: 100%; padding: 5px 0; border-radius: 5px; text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; min-height: 40px; }
         .calendar-days a.today { background-color: #007bff; color: white; }
-        .daily-count-on-calendar { color: green; }
+        .daily-count-on-calendar { color: green; font-weight: bold; font-size: 0.8em; }
         .calendar-days a.today .daily-count-on-calendar { color: white; }
-        .calendar-controls { margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; width: 100%; }
-        .calendar-controls button { padding: 8px 16px; border-radius: 5px; cursor: pointer; transition: background-color 0.3s ease; background: #007bff; color: white; border: none; }
-        
-        /* Big Button Styles */
+
+        /* Buttons & Timers */
         #logCigaretteTodayButton, .controls button.log-btn { 
-            background-color: #ff4444; 
-            color: white; 
-            border: none; 
-            border-radius: 25px; 
-            cursor: pointer; 
-            width: 100%; 
-            max-width: 300px; 
-            padding: 15px 20px; 
-            font-size: 1.1em; 
-            font-weight: bold;
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            flex-wrap: wrap;
-            margin-top: 10px;
+            background-color: #ff4444; color: white; border: none; border-radius: 25px; 
+            cursor: pointer; width: 100%; max-width: 300px; padding: 15px 20px; 
+            font-size: 1.1em; font-weight: bold; display: flex; align-items: center; justify-content: center; margin-top: 10px;
         }
-        /* State Colors */
         button[data-status="allowed"] { background-color: #00e676 !important; color: #2e3b4d !important; }
         button[data-status="cooldown"] { background-color: #ffa500 !important; color: white !important; }
-        button[data-status="normal"] { background-color: #4285F4 !important; color: white !important; }
-        
         .elapsed-counter, .cooldown-timer-display { margin-left: 8px; font-weight: normal; background-color: rgba(0,0,0,0.2); padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
-        #resetDataButton { background-color: #dc3545; }
-        
+
         /* Tracker Main */
-        .tracker-container { background: #262626; color: #e0e0e0; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); padding: 20px; width: 800px; margin: 40px auto 20px; overflow-x: visible; overflow-y: auto; }
+        .tracker-container { background: #262626; color: #e0e0e0; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); padding: 20px; width: 800px; margin: 40px auto 20px; }
         .tracker-container h1 { text-align: center; margin-top: 0; }
-        .tracker-container button.back-button { background: #6c757d; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; margin-bottom: 15px; }
+        .back-button { background: #6c757d; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; margin-bottom: 15px; }
+        
         .daily-box { background: #333; padding: 15px; border-radius: 6px; text-align: center; margin-bottom: 20px; position: relative; }
-        .stat-value { font-size: 1.8em; color: #00e676; font-family: monospace; }
-        
-        /* Living Tree */
-        .living-tree-icon { position: absolute; top: 10px; right: 10px; font-size: 2.5em; }
-        .tree-green { filter: drop-shadow(0 0 5px #00e676); }
-        .tree-yellow { filter: sepia(100%) hue-rotate(20deg) saturate(500%); } 
-        .tree-red { filter: grayscale(100%) brightness(0.7) drop-shadow(0 0 5px red); }
+        .stat-value { font-size: 3em; color: #00e676; font-family: monospace; font-weight: bold; }
+        .living-tree-icon { position: absolute; top: 10px; right: 10px; font-size: 3em; }
 
-        /* Wishlist & Money */
-        .money-display { display: flex; justify-content: space-around; margin-top: 15px; background: #222; padding: 10px; border-radius: 5px; }
-        .money-val { font-size: 1.1em; font-weight: bold; color: #ffc107; font-family: monospace; }
-        
-        .wishlist-container { margin-top: 15px; background: #2a2a2a; padding: 10px; border-radius: 5px; border: 1px solid #444; }
-        
-        .wishlist-add-form { display: flex; gap: 3px; margin-bottom: 10px; }
-        .wishlist-add-form input { flex: 1; padding: 6px; background: #444; border: 1px solid #555; color: white; border-radius: 4px; font-size: 0.9em; min-width: 0; }
-        .wishlist-add-btn { background: #00e676; border: none; color: white; padding: 0 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 1.1em;}
-        
-        .wishlist-item { background: #333; padding: 10px; border-radius: 5px; margin-bottom: 8px; position: relative; border-left: 3px solid #555; }
-        .wishlist-item.completed { border-left-color: #00e676; }
-        .wishlist-meta { display: flex; justify-content: space-between; font-size: 0.9em; margin-bottom: 5px; color: white; }
-        .wishlist-bar-bg { width: 100%; height: 8px; background: #555; border-radius: 4px; overflow: hidden; }
-        .wishlist-bar-fill { height: 100%; background: linear-gradient(90deg, #9c27b0, #e91e63); width: 0%; transition: width 0.5s; }
-        
-        .wishlist-delete { background: #ff4444; color: white; border: none; border-radius: 3px; padding: 2px 8px; cursor: pointer; font-size: 0.8em; margin-left: 10px; }
+        /* Settings Inputs */
+        .settings-row { margin-top: 15px; padding-top: 10px; border-top: 1px solid #444; }
+        .interval-inputs, .limit-section { display: flex; justify-content: center; gap: 5px; align-items: center; margin-top: 8px; }
+        .interval-inputs input, .limit-section input { width: 55px; padding: 8px; background: #444; border: 1px solid #555; color: white; text-align: center; border-radius: 5px; font-weight: bold; }
+        .save-btn { background: #007bff; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; }
 
-        /* Table & Flags */
-        .data-table { width: 100%; border-collapse: collapse; margin-top: 20px; table-layout: fixed; }
-        .data-table th, .data-table td { padding: 8px; border-bottom: 1px solid #555; text-align: left; font-size: 0.85em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .data-table th:nth-child(1) { width: 25%; } 
-        .data-table th:nth-child(2) { width: 20%; } 
-        .data-table th:nth-child(3) { width: 35%; } 
-        .data-table th:nth-child(4) { width: 20%; } 
-        
-        .flagged-row { background-color: rgba(220, 53, 69, 0.15) !important; }
-        .flagged-row td { color: #ff9999 !important; }
+        /* Chart */
+        .chart-filter-controls { display: flex; justify-content: center; gap: 10px; margin: 20px 0 10px; }
+        .chart-filter-controls select { padding: 8px; background: #444; color: white; border: 1px solid #555; border-radius: 5px; }
+        .tracker-chart-container { background: #333; padding: 15px; height: 300px; border-radius: 8px; }
 
-        .delete-btn { background: #ff4444; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; }
+        /* Data Table */
+        .data-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        .data-table th, .data-table td { padding: 12px; border-bottom: 1px solid #555; text-align: left; font-size: 0.9em; }
+        .flagged-row { background-color: rgba(220, 53, 69, 0.15); color: #ff9999; }
+        .delete-btn { background: #ff4444; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; }
 
         /* Controls */
         .controls { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; align-items: center; }
-        .trigger-section { width: 100%; max-width: 300px; display: flex; flex-direction: column; gap: 8px; }
-        #triggerSelect, #customTriggerInput { padding: 12px; border-radius: 5px; background: #444; color: white; border: 1px solid #555; width: 100%; }
-        .hidden { display: none !important; }
+        #triggerSelect { padding: 12px; border-radius: 5px; background: #444; color: white; border: 1px solid #555; width: 100%; max-width: 300px; }
 
-        /* Settings */
-        .money-settings { display: flex; justify-content: center; gap: 10px; margin-top: 15px; flex-wrap: wrap; }
-        .money-settings input { width: 70px; padding: 5px; background: #444; color: white; border: 1px solid #555; text-align: center; border-radius: 4px; }
-        .limit-section { margin-top: 15px; display: flex; justify-content: center; gap: 10px; }
-        .limit-section input { width: 60px; padding: 5px; background: #444; color: white; border: 1px solid #ccc; text-align: center; border-radius: 4px; }
-        .limit-section button { padding: 5px 10px; border-radius: 4px; cursor: pointer; background: #28a745; color: white; border: none; }
-
-        /* Chart */
-        .chart-filter-controls { display: flex; justify-content: center; gap: 10px; margin-bottom: 10px; margin-top: 20px; }
-        .chart-filter-controls select { padding: 8px; background: #444; color: #e0e0e0; border: 1px solid #555; border-radius: 5px; }
-        .tracker-chart-container { background: #333; padding: 15px; height: 300px; margin-top: 20px; }
-
-        /* Extras */
-        .extra-controls { display: flex; gap: 15px; margin-top: 15px; justify-content: center; width: 100%; flex-wrap: wrap; }
-        .extra-btn { background: transparent; border: 2px solid #555; color: #e0e0e0; font-size: 1.5em; padding: 10px 15px; border-radius: 10px; cursor: pointer; transition: all 0.3s; width: 70px; text-align: center; }
-        .extra-btn:hover { background: #444; border-color: #00e676; }
-        
-        /* Notes & Tasks */
-        .note-section textarea { width: 100%; height: 100px; background: #444; color: #e0e0e0; border: 1px solid #555; padding: 10px; }
-        .note-section button, .task-add-form button { padding: 8px 16px; border-radius: 4px; cursor: pointer; background: #28a745; color: white; border: none; margin-top: 5px; }
-        #taskList { list-style: none; padding: 0; }
-        #taskList li { display: flex; align-items: center; padding: 8px 5px; border-bottom: 1px solid #444; gap: 10px; }
-        .task-add-form input { flex-grow: 1; padding: 8px; background: #444; color: #e0e0e0; border: 1px solid #555; }
+        /* Heatmap */
+        .heatmap-grid { display: flex; align-items: flex-end; justify-content: space-between; height: 160px; gap: 3px; padding: 15px 10px 5px; background: #111; border-radius: 5px; margin-top: 10px; }
+        .heatmap-bar { width: 100%; border-radius: 2px 2px 0 0; position: relative; display: flex; flex-direction: column-reverse; }
+        .bar-success { background: #00e676; width: 100%; }
+        .bar-fail { background: #ff4444; width: 100%; }
+        .heatmap-bar-count { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); font-size: 0.75em; color: white; font-weight: bold; margin-bottom: 3px; }
+        .heatmap-labels { display: flex; justify-content: space-between; font-size: 0.7em; color: #aaa; margin-top: 10px; }
 
         /* Modals */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.9); z-index: 5000; display: flex; justify-content: center; align-items: center; visibility: hidden; opacity: 0; transition: opacity 0.3s; }
         .modal-overlay.active { visibility: visible; opacity: 1; }
-        .modal-content { background: #262626; padding: 20px; border-radius: 10px; width: 95%; max-width: 450px; color: white; text-align: center; position: relative; max-height: 85vh; overflow-y: auto; }
+        .modal-content { background: #262626; padding: 20px; border-radius: 10px; width: 95%; max-width: 450px; color: white; text-align: center; position: relative; }
         .close-modal { position: absolute; top: 10px; right: 15px; font-size: 1.5em; cursor: pointer; color: #aaa; background: none; border: none; }
-        
-        .health-list { list-style: none; padding: 0; text-align: left; }
-        .health-list li { margin-bottom: 12px; padding: 10px; background: #333; border-radius: 5px; border-left: 4px solid #555; display: flex; align-items: center; gap: 10px; opacity: 0.6; }
-        .health-list li.achieved { border-left-color: #00e676; opacity: 1; background: #2a3a2a; }
-        .check-icon { font-size: 1.2em; }
-        
-        .circle-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 300px; }
-        .breathing-circle { width: 100px; height: 100px; background: #4285F4; border-radius: 50%; opacity: 0.8; transform: scale(1); box-shadow: 0 0 20px rgba(66, 133, 244, 0.5); }
-        .breathing-active .breathing-circle { animation: breathe 19s infinite ease-in-out; } 
-        @keyframes breathe { 0% { transform: scale(1); } 20% { transform: scale(2.5); } 55% { transform: scale(2.5); } 100% { transform: scale(1); } }
 
-        .detox-tabs { display: flex; justify-content: center; margin-bottom: 15px; background: #333; border-radius: 5px; padding: 5px; gap:5px; }
-        .detox-tab { flex: 1; padding: 8px; background: transparent; border: none; color: #aaa; cursor: pointer; }
-        .detox-tab.active { background: #555; color: white; border-radius: 4px; font-weight: bold; }
-        .detox-inputs { display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; background: #333; padding: 10px; border-radius: 5px; }
-        .detox-stats { text-align: left; }
-        .progress-bar-bg { width: 100%; height: 12px; background: #444; border-radius: 6px; overflow: hidden; margin-top: 5px; position: relative; }
-        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #ff4444, #ff9900); width: 0%; transition: width 0.5s ease; }
-        
-        .heatmap-container { margin-bottom: 30px; }
-        .heatmap-title { font-size: 1.1em; color: #bbb; margin-bottom: 10px; text-align: left; border-bottom: 1px solid #444; padding-bottom: 5px; }
-        .heatmap-grid { display: flex; align-items: flex-end; justify-content: space-between; height: 150px; gap: 2px; padding-top: 20px; background: #333; border-radius: 4px; padding: 10px; }
-        .heatmap-bar { background: #ff4444; width: 100%; border-radius: 2px 2px 0 0; position: relative; transition: height 0.3s; }
-        .heatmap-count { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); color: #fff; font-size: 0.7em; margin-bottom: 2px; font-weight: bold; }
-        
-        .heatmap-labels { display: flex; justify-content: space-between; font-size: 0.7em; color: #aaa; margin-top: 25px; padding: 0 5px; }
-        .heatmap-labels span { flex: 1; text-align: center; }
+        .hidden { display: none !important; }
+        .extra-controls { display: flex; gap: 20px; margin-top: 25px; justify-content: center; }
+        .extra-btn { background: transparent; border: 2px solid #555; color: #e0e0e0; font-size: 1.8em; padding: 12px 20px; border-radius: 15px; cursor: pointer; transition: 0.3s; }
+        .extra-btn:hover { border-color: #00e676; background: #333; }
 
-        @media (max-width: 768px) { .tracker-container { width: 95%; overflow-x: auto; } .calendar-container { width: 95%; padding: 15px; } }
+        @media (max-width: 768px) { .tracker-container { width: 95%; } }
     </style>
 </head>
 <body>
 
+    <!-- CALENDAR -->
     <div class="calendar-container" id="calendarContainer">
         <div class="calendar-header">
             <button id="prevMonthBtn">&lt;</button>
@@ -179,424 +100,331 @@
         </div>
         <div class="calendar-weekdays"><div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div></div>
         <div class="calendar-days" id="calendarDays"></div>
-        <div class="calendar-controls">
+        <div style="margin-top:25px; text-align:center;">
              <button id="logCigaretteTodayButton" onclick="handleNewCigarette('today')">Log Cigarette Today</button>
-             <button id="resetDataButton" onclick="resetAllData()">Reset All Data</button>
+             <button onclick="resetAllData()" style="background:none; border:none; color:#999; cursor:pointer; font-size:0.75em; margin-top:15px;">Factory Reset Storage</button>
         </div>
     </div>
 
+    <!-- TRACKER -->
     <div class="tracker-container hidden" id="trackerContainer">
-        <h1>Smoking Tracker for <span id="trackingDate"></span></h1>
-        <button class="back-button" onclick="goBackToCalendar()">Back to Calendar</button>
+        <h1>Tracker: <span id="trackingDate"></span></h1>
+        <button class="back-button" onclick="goBackToCalendar()">← Back</button>
         
         <div class="daily-box">
             <div class="living-tree-icon" id="livingTreeIcon">🌳</div>
-            <div>Cigarettes Today</div>
+            <div style="font-size: 0.9em; color: #bbb;">Today's Count</div>
             <div class="stat-value" id="dailyCount">0</div>
             
-            <div class="money-display">
-                <div class="money-box"><div class="money-label">Spent</div><div class="money-val" id="moneySpentDisplay">$0.00</div></div>
-                <div class="money-box"><div class="money-label">Saved (Limit)</div><div class="money-val" id="moneySavedDisplay" style="color:#00e676">$0.00</div></div>
-            </div>
-            
-            <div class="wishlist-container">
-                <div style="font-size:0.9em; color:#aaa; margin-bottom:5px;">Wishlist Queue</div>
-                <div class="wishlist-add-form">
-                    <input type="text" id="newGoalName" placeholder="Goal Name">
-                    <input type="number" id="newGoalCost" placeholder="Cost ($)">
-                    <button class="wishlist-add-btn" onclick="addWishlistGoal()">+</button>
+            <div class="settings-row">
+                <div style="font-weight: bold; color: #00e676; font-size: 0.9em;">1. Wait Interval (Wait Time HH:MM:SS):</div>
+                <div class="interval-inputs">
+                    <input type="number" id="intH" placeholder="HH"> :
+                    <input type="number" id="intM" placeholder="MM" max="59"> :
+                    <input type="number" id="intS" placeholder="SS" max="59">
+                    <button class="save-btn" onclick="saveIntervalSettings()">Set</button>
                 </div>
-                <div id="wishlistList"></div>
             </div>
 
-            <div class="money-settings">
-                <div><label>Pack Price:</label><input type="number" id="packPriceInput" placeholder="0" onchange="saveMoneySettings()"></div>
-                <div><label>Cigs/Pack:</label><input type="number" id="packSizeInput" placeholder="20" onchange="saveMoneySettings()"></div>
-            </div>
-
-            <div style="margin-top: 15px;">Daily Limit:</div>
-            <div class="limit-section" style="margin-top: 5px;">
-                 <input type="number" id="dailyLimitInput" min="0" placeholder="Set Limit">
-                 <button id="saveDailyLimitButton" class="hidden">Save</button>
+            <div class="settings-row">
+                <div style="font-weight: bold; color: #4285F4; font-size: 0.9em;">2. Daily Limit (For Monitoring Only):</div>
+                <div class="limit-section">
+                    <input type="number" id="dailyLimitInput" placeholder="Qty">
+                    <button class="save-btn" style="background:#4285F4" onclick="saveDailyLimit()">Set</button>
+                </div>
             </div>
         </div>
 
-        <div class="note-section">
-            <h3>Daily Note</h3>
-            <textarea id="dailyNoteTextarea" placeholder="Add any notes..."></textarea>
-            <button id="saveNoteButton" class="hidden">Save Note</button>
+        <!-- LINE TREND -->
+        <div class="chart-filter-controls">
+            <label>Month:</label><select id="chartMonthSelect"></select>
+            <label>Year:</label><select id="chartYearSelect"></select>
         </div>
-
-        <div class="task-section">
-            <h3>Tasks</h3>
-            <ul id="taskList"></ul>
-            <div class="task-add-form">
-                <input type="text" id="taskInput" placeholder="New task...">
-                <button id="addTaskButton">Add</button>
-            </div>
-        </div>
-
-        <div class="chart-filter-controls" id="trackerDailyTrendChartFilters">
-            <label>Chart:</label>
-            <select id="trackerDailyTrendChartMonthSelect"></select>
-            <label>Year:</label>
-            <select id="trackerDailyTrendChartYearSelect"></select>
-        </div>
-        <div class="tracker-chart-container" id="dailyTrendChartContainer">
+        <div class="tracker-chart-container">
             <canvas id="dailyTrendChart"></canvas>
         </div>
 
+        <!-- TABLE -->
         <table class="data-table">
-            <thead><tr><th>Time</th><th>Diff</th><th>Reason</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Time</th><th>Wait Diff</th><th>Reason</th><th>Action</th></tr></thead>
             <tbody id="dataBody"></tbody>
         </table>
         
         <div class="controls">
-            <div class="trigger-section">
-                <select id="triggerSelect" onchange="toggleCustomTrigger()">
-                    <option value="">Why are you smoking?</option>
-                    <option value="Coffee ☕">Coffee ☕</option>
-                    <option value="Stress ⚡">Stress ⚡</option>
-                    <option value="Boredom 😐">Boredom 😐</option>
-                    <option value="After Meal 🍽️">After Meal 🍽️</option>
-                    <option value="Driving 🚗">Driving 🚗</option>
-                    <option value="Waking Up 🌅">Waking Up 🌅</option>
-                    <option value="Socializing 🗣️">Socializing 🗣️</option>
-                    <option value="Other">Write another reason...</option>
-                </select>
-                <input type="text" id="customTriggerInput" class="hidden" placeholder="Write reason here...">
-            </div>
+            <select id="triggerSelect">
+                <option value="Regular">Standard Log</option>
+                <option value="Stress ⚡">Stress ⚡</option>
+                <option value="Coffee ☕">Coffee ☕</option>
+                <option value="Meal 🍽️">After Meal 🍽️</option>
+                <option value="Boredom 😐">Boredom 😐</option>
+            </select>
             <button class="log-btn" onclick="handleNewCigarette()">Log New Cigarette</button>
         </div>
 
         <div class="extra-controls">
-            <button class="extra-btn" onclick="openHealthModal()" title="Health">❤️</button>
-            <button class="extra-btn" onclick="openBreathingModal()" title="Breathe">🧘</button>
-            <button class="extra-btn" onclick="openDetoxModal()" title="Reduction & Money">📉</button>
-            <button class="extra-btn" onclick="openHeatmapModal()" title="Risk Times">🔥</button>
+            <button class="extra-btn" onclick="openHealthModal()" title="Recovery Info">❤️</button>
+            <button class="extra-btn" onclick="openHeatmapModal()" title="Risk Times Analysis">🔥</button>
         </div>
     </div>
 
-    <!-- Modals -->
-    <div id="healthModal" class="modal-overlay"><div class="modal-content"><button class="close-modal" onclick="closeModal('healthModal')">×</button><h3>Health Recovery</h3><h2 id="timeSinceLastCig" style="color:#00e676;">0h 0m</h2><ul class="health-list" id="healthList"></ul></div></div>
-    <div id="breathingModal" class="modal-overlay"><div class="modal-content"><button class="close-modal" onclick="closeModal('breathingModal')">×</button><h3>Calm Down</h3><div class="circle-container" id="breathingContainer"><div class="breathing-circle"></div><div class="breathing-text" id="breathingText">Ready?</div></div></div></div>
-    <div id="heatmapModal" class="modal-overlay"><div class="modal-content"><button class="close-modal" onclick="closeModal('heatmapModal')">×</button><h3>Risk Times & Recovery</h3><div class="heatmap-container"><div class="heatmap-title">Historical Intensity</div><div class="heatmap-grid" id="heatmapGridOld"></div><div class="heatmap-labels"><span>12AM</span><span>3AM</span><span>6AM</span><span>9AM</span><span>12PM</span><span>3PM</span><span>6PM</span><span>9PM</span></div></div></div></div>
-    <div id="detoxModal" class="modal-overlay"><div class="modal-content"><button class="close-modal" onclick="closeModal('detoxModal')">×</button><h3>Monitor</h3><div class="detox-tabs"><button class="detox-tab active" id="tabDaily" onclick="switchDetoxTab('daily')">Daily</button><button class="detox-tab" id="tabWeekly" onclick="switchDetoxTab('weekly')">Weekly</button></div><div id="detoxStatsView"><div class="detox-inputs"><div style="display:flex; justify-content:space-between;"><label>Years:</label><input type="number" id="historyYearsInput" placeholder="15" onchange="saveDetoxSettings()"></div><div style="display:flex; justify-content:space-between;"><label>Old Avg:</label><input type="number" id="historyBaselineInput" placeholder="40" onchange="saveDetoxSettings()"></div></div><div class="detox-stats"><div class="detox-stat-item"><div class="detox-stat-title" id="detoxLoadTitle">Load</div><div class="progress-bar-bg"><div class="progress-bar-fill" id="detoxProgressBar"></div></div><div style="display:flex; justify-content:space-between; font-size:0.8em;"><span id="detoxCurrentVal">0</span><span id="detoxBaselineVal">40</span></div></div><div class="detox-stat-item"><div class="detox-stat-title">Avoided</div><div class="detox-stat-val" id="detoxAvoidedToday" style="color:#00e676;">0</div></div><div class="detox-stat-item"><div class="detox-stat-title">Reduction</div><div class="detox-stat-val" id="detoxReductionPercent">0%</div></div><div class="detox-stat-item" id="detoxCostItem" style="margin-top:15px; border-top:1px solid #444; padding-top:10px;"><div class="detox-stat-title" id="detoxCostTitle">Daily Cost</div><div class="detox-stat-val" id="detoxCostVal" style="color:#ffc107;">$0.00</div></div></div></div></div></div>
+    <!-- MODALS -->
+    <div id="healthModal" class="modal-overlay"><div class="modal-content"><button class="close-modal" onclick="closeModal('healthModal')">×</button><h3>Total Recovery Duration</h3><h1 id="timeSinceLastCig" style="color:#00e676; font-size:3em;">--</h1><p style="color:#aaa;">Since your absolute last recorded cigarette.</p></div></div>
+    
+    <div id="heatmapModal" class="modal-overlay">
+        <div class="modal-content">
+            <button class="close-modal" onclick="closeModal('heatmapModal')">×</button>
+            <h3>Daily Success vs Failure</h3>
+            <p style="font-size:0.8em; color:#aaa; margin-bottom: 10px;">Green: After Wait | Red: Before Wait</p>
+            <div class="heatmap-grid" id="heatmapGrid"></div>
+            <div class="heatmap-labels"><span>12AM</span><span>6AM</span><span>12PM</span><span>6PM</span><span>11PM</span></div>
+        </div>
+    </div>
 
     <script>
         'use strict';
         
-        // --- DATA HANDLING (Switched to LocalStorage) ---
-        let smokingData = { dailyRecords: {}, settings: {} };
-        let currentDate = new Date(), selectedDate = null;
-        let currentDetoxTab = 'daily';
+        let smokingData = { dailyRecords: {}, settings: { intervalMs: 3600000 } };
+        let currentDate = new Date(), selectedDate = null, myChart = null;
 
-        function saveSmokingDataToStorage() {
-            localStorage.setItem('smoking_tracker_data', JSON.stringify(smokingData));
-            if (!document.getElementById('trackerContainer').classList.contains('hidden')) refreshUI(); 
-            else renderCalendar();
-        }
-
-        function loadSmokingDataLocal() {
-            const saved = localStorage.getItem('smoking_tracker_data');
+        function loadData() {
+            const saved = localStorage.getItem('smoking_tracker_monitoring_v1');
             if (saved) smokingData = JSON.parse(saved);
             renderCalendar();
         }
 
-        // --- THE REST OF THE ORIGINAL LOGIC ---
-        function getDeviceLocalTime() { return new Date(); }
-        function ensureDailyRecordStructure(dR) {
-            if(!dR.periods) dR={periods:[{startTime:getDeviceLocalTime().getTime(), endTime:null, cigarettes:0, lastActivity:getDeviceLocalTime().getTime(), entries:[]}], limit:0, note:'', tasks:[]};
-            return dR;
-        }
-        function getOrCreateCurrentPeriod(k) { 
-            if(!smokingData.dailyRecords[k]) smokingData.dailyRecords[k] = ensureDailyRecordStructure({});
-            return smokingData.dailyRecords[k].periods[0]; 
-        }
-        function formatDuration(s) { if(isNaN(s)||s<0)s=0; const h=Math.floor(s/3600), m=Math.floor((s%3600)/60), sec=Math.floor(s%60); return (h>0?h+'h ':'')+(m>0?m+'m ':'')+sec+'s'; }
-        function getTimeDifference(t1, t2) { const d = Math.abs(Number(t2) - Number(t1)); return d === 0 ? '0s' : formatDuration(Math.floor(d / 1000)); }
-
-        function toggleCustomTrigger() {
-            const sel = document.getElementById('triggerSelect'); const inp = document.getElementById('customTriggerInput');
-            if(sel.value === 'Other') { inp.classList.remove('hidden'); inp.focus(); } else { inp.classList.add('hidden'); }
+        function saveData() {
+            localStorage.setItem('smoking_tracker_monitoring_v1', JSON.stringify(smokingData));
+            if (selectedDate) refreshUI();
+            renderCalendar();
         }
 
-        function addWishlistGoal() {
-            const name = document.getElementById('newGoalName').value;
-            const cost = parseFloat(document.getElementById('newGoalCost').value);
-            if(!name || !cost) return;
-            if(!smokingData.settings.wishlistGoals) smokingData.settings.wishlistGoals = [];
-            smokingData.settings.wishlistGoals.push({id:Date.now(), name, cost});
-            document.getElementById('newGoalName').value = ''; document.getElementById('newGoalCost').value = '';
-            saveSmokingDataToStorage();
+        function saveIntervalSettings() {
+            const h = parseInt(document.getElementById('intH').value) || 0;
+            const m = parseInt(document.getElementById('intM').value) || 0;
+            const s = parseInt(document.getElementById('intS').value) || 0;
+            smokingData.settings.intervalMs = ((h * 3600) + (m * 60) + s) * 1000;
+            saveData();
+            alert("Interval updated!");
         }
 
-        function deleteWishlistGoal(id) {
-            if(confirm("Remove goal?")) {
-                smokingData.settings.wishlistGoals = smokingData.settings.wishlistGoals.filter(g => g.id !== id);
-                saveSmokingDataToStorage();
-            }
-        }
-
-        function calculateMoneyAndWishlist() {
-            if(!smokingData.settings) smokingData.settings = {};
-            const price = smokingData.settings.packPrice || 0;
-            const size = smokingData.settings.packSize || 20;
-            const costPerCig = size > 0 ? (price / size) : 0;
-            const baseline = smokingData.settings.historyBaseline || 0;
-
-            const rec = smokingData.dailyRecords[selectedDate];
-            const count = (rec && rec.periods[0]) ? rec.periods[0].entries.length : 0;
-            document.getElementById('moneySpentDisplay').textContent = (count * costPerCig).toFixed(2);
-            
-            const limit = (rec && rec.limit > 0) ? rec.limit : 0;
-            const savedElem = document.getElementById('moneySavedDisplay');
-            if(limit>0) { const s=(limit*costPerCig)-(count*costPerCig); savedElem.textContent=s.toFixed(2); savedElem.style.color=s>=0?'#00e676':'#ff4444'; }
-            else savedElem.textContent="-";
-
-            let totalSavedMoney = 0;
-            Object.keys(smokingData.dailyRecords).forEach(k => {
-                const c = smokingData.dailyRecords[k].periods[0].entries.length;
-                totalSavedMoney += Math.max(0, baseline - c) * costPerCig;
-            });
-
-            const listDiv = document.getElementById('wishlistList'); listDiv.innerHTML = '';
-            const goals = smokingData.settings.wishlistGoals || [];
-            let remainingMoney = totalSavedMoney;
-            goals.forEach(g => {
-                let fill = 0;
-                if (remainingMoney >= g.cost) { fill = 100; remainingMoney -= g.cost; }
-                else if (remainingMoney > 0) { fill = (remainingMoney / g.cost) * 100; remainingMoney = 0; }
-                const item = document.createElement('div');
-                item.className = `wishlist-item ${fill>=100?'completed':''}`;
-                item.innerHTML = `<div class="wishlist-meta"><span>${g.name}</span><span>$${g.cost}</span></div><div class="wishlist-bar-bg"><div class="wishlist-bar-fill" style="width:${fill}%"></div></div><div style="font-size:0.7em; text-align:right; margin-top:2px; color:#aaa;">${fill.toFixed(1)}%</div><button class="wishlist-delete" onclick="deleteWishlistGoal(${g.id})">Delete</button>`;
-                listDiv.appendChild(item);
-            });
-        }
-
-        function updateLivingTree() {
-            const icon = document.getElementById('livingTreeIcon');
-            const rec = smokingData.dailyRecords[selectedDate];
-            const count = (rec && rec.periods[0]) ? rec.periods[0].entries.length : 0;
-            const limit = (rec && rec.limit > 0) ? rec.limit : (smokingData.settings.historyBaseline || 20);
-            const ratio = count / limit;
-            icon.className = 'living-tree-icon';
-            if (count === 0 || ratio < 0.5) { icon.textContent = "🌳"; icon.classList.add('tree-green'); }
-            else if (ratio >= 0.5 && ratio <= 1.0) { icon.textContent = "🍂"; icon.classList.add('tree-yellow'); }
-            else { icon.textContent = "🥀"; icon.classList.add('tree-red'); }
-        }
-
-        function openDetoxModal() { document.getElementById('detoxModal').classList.add('active'); if(!smokingData.settings.historyYears) document.getElementById('historyYearsInput').value=15; if(!smokingData.settings.historyBaseline) document.getElementById('historyBaselineInput').value=40; updateDetoxStats(); }
-        function saveDetoxSettings() { smokingData.settings.historyYears = parseInt(document.getElementById('historyYearsInput').value); smokingData.settings.historyBaseline = parseInt(document.getElementById('historyBaselineInput').value); saveSmokingDataToStorage(); updateDetoxStats(); }
-        
-        function switchDetoxTab(tab) {
-            currentDetoxTab = tab;
-            ['Daily','Weekly'].forEach(t => {
-                const el = document.getElementById('tab'+t);
-                if(el) el.className = (t.toLowerCase()===tab)?'detox-tab active':'detox-tab';
-            });
-            updateDetoxStats();
-        }
-
-        function updateDetoxStats() {
-            const baselineDay = smokingData.settings.historyBaseline || 1;
-            let actual = 0, baseline = 0;
-            const rec = smokingData.dailyRecords[selectedDate];
-            const packPrice = smokingData.settings.packPrice || 0;
-            const packSize = smokingData.settings.packSize || 20;
-            const costPerCig = packSize > 0 ? (packPrice / packSize) : 0;
-            if (currentDetoxTab === 'daily') {
-                document.getElementById('detoxLoadTitle').textContent = "Daily Load";
-                actual = (rec && rec.periods[0]) ? rec.periods[0].entries.length : 0;
-                baseline = (rec && rec.limit > 0) ? rec.limit : baselineDay;
-                document.getElementById('detoxCostTitle').textContent = "Daily Cost (Burnt)";
-                document.getElementById('detoxCostVal').textContent = '$' + (actual * costPerCig).toFixed(2);
-            } else {
-                document.getElementById('detoxLoadTitle').textContent = "Weekly Load";
-                const now = new Date(); const startOfWeek = new Date(now); startOfWeek.setDate(now.getDate() - now.getDay()); startOfWeek.setHours(0,0,0,0);
-                for(let i=0; i<7; i++) {
-                    const d = new Date(startOfWeek); d.setDate(d.getDate() + i);
-                    const dStr = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
-                    if(smokingData.dailyRecords[dStr]) { actual += smokingData.dailyRecords[dStr].periods[0].entries.length; if(smokingData.dailyRecords[dStr].limit > 0) baseline += smokingData.dailyRecords[dStr].limit; }
-                }
-                if(baseline === 0) baseline = 1; 
-                document.getElementById('detoxCostTitle').textContent = "Weekly Cost (Burnt)";
-                document.getElementById('detoxCostVal').textContent = '$' + (actual * costPerCig).toFixed(2);
-            }
-            const percent = Math.min((actual / baseline) * 100, 100);
-            const bar = document.getElementById('detoxProgressBar');
-            bar.style.width = percent + '%';
-            bar.style.background = percent < 50 ? '#00e676' : (percent < 80 ? '#ff9900' : '#ff4444');
-            document.getElementById('detoxCurrentVal').textContent = actual;
-            document.getElementById('detoxBaselineVal').textContent = baseline;
-            document.getElementById('detoxAvoidedToday').textContent = Math.max(0, baseline - actual) + " cigs";
-            document.getElementById('detoxReductionPercent').textContent = Math.max(0, ((baseline - actual) / baseline) * 100).toFixed(1) + "%";
-        }
-
-        function saveMoneySettings() { 
-            if(!smokingData.settings) smokingData.settings={}; 
-            smokingData.settings.packPrice = parseFloat(document.getElementById('packPriceInput').value); 
-            smokingData.settings.packSize = parseInt(document.getElementById('packSizeInput').value);
-            saveSmokingDataToStorage();
+        function saveDailyLimit() {
+            if (!smokingData.dailyRecords[selectedDate]) smokingData.dailyRecords[selectedDate] = { entries: [], limit: 0 };
+            smokingData.dailyRecords[selectedDate].limit = parseInt(document.getElementById('dailyLimitInput').value) || 0;
+            saveData();
+            alert("Daily Target Saved!");
         }
 
         function handleNewCigarette(src) {
-            let target=selectedDate; const now=getDeviceLocalTime();
-            if(src==='today') target=`${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2,'0')}-${now.getDate().toString().padStart(2,'0')}`;
-            let trig=document.getElementById('triggerSelect').value; if(trig==='Other')trig=document.getElementById('customTriggerInput').value; if(src==='today')trig="Quick Log";
-            let isFlagged = false;
-            const existingRecord = smokingData.dailyRecords[target];
-            if(existingRecord && existingRecord.limit > 0) {
-                const p = existingRecord.periods[0];
-                if(p.entries.length > 0) {
-                   const lastTime = p.entries[p.entries.length - 1].timestamp;
-                   const allowedInterval = 57600000 / existingRecord.limit;
-                   const nextAllowedTime = lastTime + allowedInterval;
-                   if(now.getTime() < nextAllowedTime) isFlagged = true;
+            const now = new Date();
+            const dateStr = src === 'today' ? formatDate(now) : selectedDate;
+            const trig = document.getElementById('triggerSelect').value;
+
+            if (!smokingData.dailyRecords[dateStr]) smokingData.dailyRecords[dateStr] = { entries: [], limit: 0 };
+            
+            const entries = smokingData.dailyRecords[dateStr].entries;
+            const lastEntry = entries.length > 0 ? entries[entries.length - 1] : null;
+            let flagged = false;
+
+            // Logic strictly based on intervalMs
+            if (lastEntry) {
+                if (now.getTime() - lastEntry.timestamp < smokingData.settings.intervalMs) {
+                    if (!confirm("Wait interval hasn't finished. Log anyway?")) return;
+                    flagged = true;
                 }
             }
-            const per=getOrCreateCurrentPeriod(target);
-            const btn = src==='today'?document.getElementById('logCigaretteTodayButton'):document.querySelector('.log-btn');
-            if(src==='today' || target===`${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2,'0')}-${now.getDate().toString().padStart(2,'0')}`) {
-                if(btn && btn.getAttribute('data-status')==='cooldown'){if(!confirm("Cooldown active. Log anyway?"))return;}
-            }
-            per.entries.push({ id:now.getTime(), date:target, time:now.toLocaleTimeString(), timestamp:now.getTime(), reason:trig||"Unspecified", flagged: isFlagged });
-            per.entries.sort((a,b)=>a.timestamp-b.timestamp); per.lastActivity=now.getTime();
-            saveSmokingDataToStorage();
-        }
 
-        function deleteEntry(id) {
-            if (confirm("Delete this entry?")) {
-                const p = smokingData.dailyRecords[selectedDate].periods[0];
-                p.entries = p.entries.filter(e => e.id !== id);
-                p.entries.sort((a, b) => a.timestamp - b.timestamp);
-                p.lastActivity = p.entries.length > 0 ? p.entries[p.entries.length - 1].timestamp : 0;
-                saveSmokingDataToStorage();
-            }
-        }
-
-        function openHealthModal() { document.getElementById('healthModal').classList.add('active'); updateHealthTimeline(); }
-        function openBreathingModal() { document.getElementById('breathingModal').classList.add('active'); startBreathingExercise(); }
-        function openHeatmapModal() {
-            document.getElementById('heatmapModal').classList.add('active'); 
-            let hourlyCountsCached = new Array(24).fill(0); 
-            Object.values(smokingData.dailyRecords).forEach(r => { if(r.periods) r.periods[0].entries.forEach(e => { hourlyCountsCached[new Date(e.timestamp).getHours()]++; }); });
-            const grid = document.getElementById('heatmapGridOld'); grid.innerHTML = '';
-            const max = Math.max(...hourlyCountsCached) || 1;
-            hourlyCountsCached.forEach(v => {
-                const b = document.createElement('div'); b.className = 'heatmap-bar'; b.style.height = `${(v/max)*100}%`;
-                if(v > 0) { const countSpan = document.createElement('span'); countSpan.className = 'heatmap-count'; countSpan.innerText = v; b.appendChild(countSpan); }
-                grid.appendChild(b);
+            entries.push({
+                id: Date.now(),
+                timestamp: now.getTime(),
+                time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                reason: trig,
+                flagged: flagged
             });
-        }
-
-        function closeModal(id) { document.getElementById(id).classList.remove('active'); if(id==='breathingModal') clearInterval(breatheInt); }
-        function updateHealthTimeline() {
-            const list=document.getElementById('healthList'); list.innerHTML=''; let last=0;
-            Object.values(smokingData.dailyRecords).forEach(r=>{if(r.periods&&r.periods[0].entries.length) last=Math.max(last, r.periods[0].entries[r.periods[0].entries.length-1].timestamp)});
-            if(!last){document.getElementById('timeSinceLastCig').textContent="No data";return;}
-            const diff=Math.floor((Date.now()-last)/1000); document.getElementById('timeSinceLastCig').textContent=formatDuration(diff);
-            [{s:1200,t:"20 Mins",d:"BP"},{s:28800,t:"8 Hours",d:"CO"},{s:86400,t:"24 Hours",d:"Heart"}].forEach(x=>{list.innerHTML+=`<li class="${diff>=x.s?'achieved':''}"><div class="check-icon">${diff>=x.s?'✅':'🔒'}</div><div><h4>${x.t}</h4><p>${x.d}</p></div></li>`});
-        }
-        let breatheInt;
-        function startBreathingExercise() { const t=document.getElementById('breathingText'); document.getElementById('breathingContainer').classList.add('breathing-active'); let c=0; clearInterval(breatheInt); breatheInt=setInterval(()=>{c++;if(c<=4)t.textContent="Inhale";else if(c<=11)t.textContent="Hold";else if(c<=19)t.textContent="Exhale";if(c>=19)c=0},1000); }
-
-        function renderCalendar() {
-            const y=currentDate.getFullYear(), m=currentDate.getMonth();
-            document.getElementById('currentMonth').textContent=new Date(y,m).toLocaleString('default',{month:'short',year:'numeric'});
-            const g=document.getElementById('calendarDays'); g.innerHTML='';
-            const fd=new Date(y,m,1).getDay(), dim=new Date(y,m+1,0).getDate();
-            for(let i=0;i<fd;i++)g.appendChild(document.createElement('a')).classList.add('inactive');
-            for(let i=1;i<=dim;i++){
-                const a=document.createElement('a'); a.textContent=i; const d=`${y}-${(m+1).toString().padStart(2,'0')}-${i.toString().padStart(2,'0')}`;
-                a.onclick=()=>showTracker(d);
-                const c=(smokingData.dailyRecords[d]?.periods[0]?.entries.length)||0;
-                if(c>0){const dv=document.createElement('div');dv.className='daily-count-on-calendar';dv.textContent=c;a.appendChild(dv);}
-                const n=getDeviceLocalTime(); if(d===`${n.getFullYear()}-${(n.getMonth()+1).toString().padStart(2,'0')}-${n.getDate().toString().padStart(2,'0')}`)a.classList.add('today');
-                g.appendChild(a);
-            }
-            updateLogCigaretteButtonState();
-        }
-
-        function showTracker(d) { selectedDate=d; document.getElementById('trackingDate').textContent=d; document.getElementById('calendarContainer').classList.add('hidden'); document.getElementById('trackerContainer').classList.remove('hidden'); refreshUI(); window.scrollTo({top:0}); }
-        function goBackToCalendar() { document.getElementById('trackerContainer').classList.add('hidden'); document.getElementById('calendarContainer').classList.remove('hidden'); selectedDate=null; renderCalendar(); }
-        
-        function updateMainChart() {
-            const ctx=document.getElementById('dailyTrendChart'); if(!ctx)return;
-            const m=parseInt(document.getElementById('trackerDailyTrendChartMonthSelect').value), y=parseInt(document.getElementById('trackerDailyTrendChartYearSelect').value);
-            const ds=Object.keys(smokingData.dailyRecords).filter(k=>{const d=new Date(k);return d.getMonth()===m&&d.getFullYear()===y}).sort();
-            const cs=ds.map(k=>smokingData.dailyRecords[k].periods[0].entries.length);
-            if(window.myChart)window.myChart.destroy();
-            window.myChart=new Chart(ctx,{type:'line',data:{labels:ds.map(d=>d.split('-')[2]),datasets:[{label:'Cigs',data:cs.length?cs:[0],borderColor:'#00e676',tension:0.4}]}});
+            saveData();
         }
 
         function refreshUI() {
-            if(!selectedDate)return;
-            const rec=smokingData.dailyRecords[selectedDate]||ensureDailyRecordStructure({});
-            document.getElementById('packPriceInput').value=smokingData.settings.packPrice||0;
-            document.getElementById('packSizeInput').value=smokingData.settings.packSize||20;
-            document.getElementById('dailyCount').textContent=rec.periods[0].entries.length;
-            calculateMoneyAndWishlist(); updateLivingTree();
-            document.getElementById('dailyNoteTextarea').value=rec.note||'';
-            const ul=document.getElementById('taskList'); ul.innerHTML='';
-            if(rec.tasks) rec.tasks.forEach(t=>{ul.innerHTML+=`<li><input type="checkbox" ${t.completed?'checked':''} onchange="toggleTask(${t.id})"><label>${t.text}</label><button onclick="delTask(${t.id})">×</button></li>`});
-            document.getElementById('dailyLimitInput').value = (rec && rec.limit > 0) ? rec.limit : '';
+            const rec = smokingData.dailyRecords[selectedDate] || { entries: [], limit: 0 };
+            document.getElementById('dailyCount').textContent = rec.entries.length;
             
-            // Re-populate filters and update chart
-            const mS=document.getElementById('trackerDailyTrendChartMonthSelect'), yS=document.getElementById('trackerDailyTrendChartYearSelect');
-            if(!mS.options.length) ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].forEach((v,i)=>mS.innerHTML+=`<option value="${i}">${v}</option>`);
-            let tY,tM; const p=selectedDate.split('-'); tY=parseInt(p[0]); tM=parseInt(p[1])-1;
-            yS.innerHTML=''; const ys=new Set(Object.keys(smokingData.dailyRecords).map(k=>new Date(k).getFullYear())); ys.add(new Date().getFullYear()); ys.add(tY);
-            Array.from(ys).sort((a,b)=>b-a).forEach(v=>yS.innerHTML+=`<option value="${v}">${v}</option>`);
-            mS.value=tM; yS.value=tY;
-            updateMainChart();
-            
-            const tb=document.getElementById('dataBody'); tb.innerHTML='';
-            rec.periods[0].entries.forEach((e,i,a)=>{
-                const d=i>0?getTimeDifference(a[i-1].timestamp,e.timestamp):'-';
-                tb.innerHTML+=`<tr class="${e.flagged?'flagged-row':''}"><td>${e.time}</td><td>${d}</td><td>${e.reason + (e.flagged ? ' ⚠️' : '')}</td><td><button class="delete-btn" onclick="deleteEntry(${e.id})">Del</button></td></tr>`
+            // Sync Settings Inputs
+            const ms = smokingData.settings.intervalMs;
+            document.getElementById('intH').value = Math.floor(ms / 3600000);
+            document.getElementById('intM').value = Math.floor((ms % 3600000) / 60000);
+            document.getElementById('intS').value = Math.floor((ms % 60000) / 1000);
+            document.getElementById('dailyLimitInput').value = rec.limit || '';
+
+            // Chart Filters & Update
+            populateChartFilters();
+            updateTrendChart();
+
+            // Log Table
+            const tb = document.getElementById('dataBody'); tb.innerHTML = '';
+            rec.entries.forEach((e, i) => {
+                const wait = i > 0 ? formatDuration((e.timestamp - rec.entries[i-1].timestamp)/1000) : '---';
+                tb.innerHTML += `<tr class="${e.flagged ? 'flagged-row' : ''}">
+                    <td>${e.time}</td><td>${wait}</td><td>${e.reason} ${e.flagged ? '⚠️' : ''}</td>
+                    <td><button class="delete-btn" onclick="deleteEntry(${e.id})">✕</button></td></tr>`;
             });
-            updateLogCigaretteButtonState();
+            updateTimerButtons();
+            updateTree(rec.entries.length, rec.limit);
         }
 
-        function updateLogCigaretteButtonState() {
-            const b1 = document.getElementById('logCigaretteTodayButton'); const b2 = document.querySelector('.log-btn'); const n = new Date();
-            const tStr = `${n.getFullYear()}-${(n.getMonth()+1).toString().padStart(2,'0')}-${n.getDate().toString().padStart(2,'0')}`;
-            const getS = (d) => {
-                const r = smokingData.dailyRecords[d]; const lim = r ? r.limit : 0; let l = 0;
-                if (r && r.periods[0].entries.length > 0) l = r.periods[0].entries[r.periods[0].entries.length - 1].timestamp;
-                let t = 0, c = false; if(lim > 0 && l > 0){ t = l + (57600000 / lim); if(t > Date.now()) c = true; } 
-                return {t, c, l};
+        function populateChartFilters() {
+            const mS = document.getElementById('chartMonthSelect'), yS = document.getElementById('chartYearSelect');
+            if (mS.options.length === 0) {
+                ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].forEach((m, i) => {
+                    const opt = document.createElement('option'); opt.value = i; opt.textContent = m; mS.appendChild(opt);
+                });
+                const d = new Date(selectedDate);
+                mS.value = d.getMonth();
+                const yrs = new Set([d.getFullYear(), new Date().getFullYear()]);
+                Object.keys(smokingData.dailyRecords).forEach(k => yrs.add(new Date(k).getFullYear()));
+                Array.from(yrs).sort().forEach(y => {
+                    const opt = document.createElement('option'); opt.value = y; opt.textContent = y; yS.appendChild(opt);
+                });
+                yS.value = d.getFullYear();
+            }
+        }
+
+        function updateTrendChart() {
+            const ctx = document.getElementById('dailyTrendChart').getContext('2d');
+            const m = parseInt(document.getElementById('chartMonthSelect').value);
+            const y = parseInt(document.getElementById('chartYearSelect').value);
+            
+            const daysInMonth = new Date(y, m + 1, 0).getDate();
+            const labels = [], data = [];
+            for (let i = 1; i <= daysInMonth; i++) {
+                labels.push(i);
+                const dStr = `${y}-${(m+1).toString().padStart(2,'0')}-${i.toString().padStart(2,'0')}`;
+                data.push(smokingData.dailyRecords[dStr] ? smokingData.dailyRecords[dStr].entries.length : 0);
+            }
+
+            if (myChart) myChart.destroy();
+            myChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{ label: 'Daily Cigarettes', data: data, borderColor: '#00e676', backgroundColor: 'rgba(0, 230, 118, 0.1)', fill: true, tension: 0.3 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: '#444' } }, x: { grid: { display: false } } } }
+            });
+        }
+
+        function updateTimerButtons() {
+            const btn1 = document.getElementById('logCigaretteTodayButton'), btn2 = document.querySelector('.log-btn');
+            const today = formatDate(new Date());
+
+            const check = (dStr, btn) => {
+                if (!btn) return;
+                const rec = smokingData.dailyRecords[dStr];
+                if (!rec || rec.entries.length === 0) {
+                    btn.innerHTML = "Log Cigarette"; btn.setAttribute('data-status', 'allowed'); return;
+                }
+                const last = rec.entries[rec.entries.length - 1].timestamp;
+                const next = last + smokingData.settings.intervalMs, now = Date.now();
+
+                if (now < next) {
+                    btn.setAttribute('data-status', 'cooldown');
+                    btn.innerHTML = `Wait: <span class="cooldown-timer-display">${formatDuration((next - now)/1000)}</span>`;
+                } else {
+                    btn.setAttribute('data-status', 'allowed');
+                    btn.innerHTML = `Log <span class="elapsed-counter">+${formatDuration((now - last)/1000)}</span>`;
+                }
             };
-            const s = getS(tStr);
-            if(b1) { if (s.l === 0) { clearInterval(b1.int); b1.innerHTML = "Log Cigarette Today"; b1.setAttribute('data-status', 'normal'); } else runTimer(b1, s.t, s.c, s.l, true); }
-            if(b2 && selectedDate) { if(selectedDate === tStr) { if (s.l === 0) { clearInterval(b2.int); b2.innerHTML = "Log New Cigarette"; b2.setAttribute('data-status', 'normal'); } else runTimer(b2, s.t, s.c, s.l, false); } else { if(b2.int) clearInterval(b2.int); b2.setAttribute('data-status','normal'); b2.innerHTML="Log New"; } }
+            check(today, btn1);
+            if (selectedDate === today) check(selectedDate, btn2);
         }
 
-        function runTimer(b, t, c, l, isCal) {
-            clearInterval(b.int); const tick=()=>{
-                if(c){ const r=Math.max(0,t-Date.now()); b.innerHTML=(isCal?'Log':'Log')+(r>0?` <span class="cooldown-timer-display">(${formatDuration(r/1000)})</span>`:''); b.setAttribute('data-status','cooldown'); if(r<=0){clearInterval(b.int);updateLogCigaretteButtonState();} } 
-                else { const e=Math.max(0,Date.now()-l); b.innerHTML=(isCal?'Log':'Log')+` <span class="elapsed-counter">${formatDuration(e/1000)}</span>`; b.setAttribute('data-status','allowed'); }
-            }; tick(); b.int=setInterval(tick,1000);
+        function openHeatmapModal() {
+            document.getElementById('heatmapModal').classList.add('active');
+            const grid = document.getElementById('heatmapGrid'); grid.innerHTML = '';
+            let hourly = Array.from({length: 24}, () => ({ success: 0, fail: 0 }));
+
+            Object.values(smokingData.dailyRecords).forEach(r => {
+                r.entries.forEach(e => {
+                    const h = new Date(e.timestamp).getHours();
+                    if (e.flagged) hourly[h].fail++; else hourly[h].success++;
+                });
+            });
+
+            const max = Math.max(...hourly.map(h => h.success + h.fail)) || 1;
+            hourly.forEach((h) => {
+                const total = h.success + h.fail;
+                const bar = document.createElement('div'); bar.className = 'heatmap-bar'; 
+                bar.style.height = `${(total/max)*100}%`;
+                
+                if (total > 0) {
+                    const countLabel = document.createElement('div');
+                    countLabel.className = 'heatmap-bar-count';
+                    countLabel.innerText = total;
+                    bar.appendChild(countLabel);
+                }
+
+                if (h.fail > 0) { const f = document.createElement('div'); f.className = 'bar-fail'; f.style.flex = h.fail; bar.appendChild(f); }
+                if (h.success > 0) { const s = document.createElement('div'); s.className = 'bar-success'; s.style.flex = h.success; bar.appendChild(s); }
+                grid.appendChild(bar);
+            });
         }
 
-        function toggleTask(id){const r=smokingData.dailyRecords[selectedDate];const t=r.tasks.find(x=>x.id===id);t.completed=!t.completed;saveSmokingDataToStorage();}
-        function delTask(id){const r=smokingData.dailyRecords[selectedDate];r.tasks=r.tasks.filter(x=>x.id!==id);saveSmokingDataToStorage();}
-        function saveDailyLimit(){const v=parseInt(document.getElementById('dailyLimitInput').value); if(!smokingData.dailyRecords[selectedDate]) smokingData.dailyRecords[selectedDate] = ensureDailyRecordStructure({}); smokingData.dailyRecords[selectedDate].limit=v; saveSmokingDataToStorage(); document.getElementById('saveDailyLimitButton').classList.add('hidden');}
-        function saveDailyNote(){smokingData.dailyRecords[selectedDate].note=document.getElementById('dailyNoteTextarea').value;saveSmokingDataToStorage();document.getElementById('saveNoteButton').classList.add('hidden');}
-        function resetAllData(){if(confirm("Reset ALL data locally?")){smokingData.dailyRecords={};saveSmokingDataToStorage();renderCalendar();}}
+        function openHealthModal() {
+            document.getElementById('healthModal').classList.add('active');
+            let last = 0;
+            Object.values(smokingData.dailyRecords).forEach(r => r.entries.forEach(e => { if(e.timestamp > last) last = e.timestamp; }));
+            document.getElementById('timeSinceLastCig').textContent = last ? formatDuration((Date.now() - last)/1000) : 'No Data';
+        }
+
+        function updateTree(count, limit) {
+            const icon = document.getElementById('livingTreeIcon');
+            // Monitoring logic: If limit is set, use it to gauge health
+            if (limit > 0) {
+                if (count <= limit * 0.5) icon.textContent = "🌳";
+                else if (count <= limit) icon.textContent = "🍂";
+                else icon.textContent = "🥀";
+            } else {
+                // Default logic if no limit set
+                if (count === 0) icon.textContent = "🌳";
+                else if (count < 5) icon.textContent = "🍂";
+                else icon.textContent = "🥀";
+            }
+        }
+
+        function formatDuration(s) {
+            const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = Math.floor(s % 60);
+            return (h > 0 ? h + 'h ' : '') + (m > 0 ? m + 'm ' : '') + sec + 's';
+        }
+        function formatDate(d) { return `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`; }
+        function deleteEntry(id) { smokingData.dailyRecords[selectedDate].entries = smokingData.dailyRecords[selectedDate].entries.filter(e => e.id !== id); saveData(); }
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+        function showTracker(d) { selectedDate = d; document.getElementById('trackingDate').textContent = d; document.getElementById('calendarContainer').classList.add('hidden'); document.getElementById('trackerContainer').classList.remove('hidden'); refreshUI(); }
+        function goBackToCalendar() { selectedDate = null; document.getElementById('calendarContainer').classList.remove('hidden'); document.getElementById('trackerContainer').classList.add('hidden'); renderCalendar(); }
+        function resetAllData() { if (confirm("Erase all logs?")) { localStorage.clear(); location.reload(); } }
+
+        function renderCalendar() {
+            const y = currentDate.getFullYear(), m = currentDate.getMonth();
+            document.getElementById('currentMonth').textContent = new Date(y, m).toLocaleString('default', { month: 'short', year: 'numeric' });
+            const g = document.getElementById('calendarDays'); g.innerHTML = '';
+            const first = new Date(y, m, 1).getDay(), days = new Date(y, m + 1, 0).getDate();
+            for (let i = 0; i < first; i++) g.appendChild(document.createElement('div'));
+            for (let i = 1; i <= days; i++) {
+                const dStr = `${y}-${(m+1).toString().padStart(2,'0')}-${i.toString().padStart(2,'0')}`;
+                const a = document.createElement('a'); a.textContent = i;
+                if (smokingData.dailyRecords[dStr]) {
+                    const dv = document.createElement('div'); dv.className = 'daily-count-on-calendar'; 
+                    dv.textContent = smokingData.dailyRecords[dStr].entries.length; a.appendChild(dv);
+                }
+                if (dStr === formatDate(new Date())) a.classList.add('today');
+                a.onclick = () => showTracker(dStr); g.appendChild(a);
+            }
+        }
 
         document.addEventListener('DOMContentLoaded', () => {
-            loadSmokingDataLocal();
-            document.getElementById('prevMonthBtn').onclick=()=>{currentDate.setMonth(currentDate.getMonth()-1);renderCalendar();};
-            document.getElementById('nextMonthBtn').onclick=()=>{currentDate.setMonth(currentDate.getMonth()+1);renderCalendar();};
-            document.getElementById('dailyLimitInput').oninput=()=>document.getElementById('saveDailyLimitButton').classList.remove('hidden');
-            document.getElementById('saveDailyLimitButton').onclick=saveDailyLimit;
-            document.getElementById('dailyNoteTextarea').oninput=()=>document.getElementById('saveNoteButton').classList.remove('hidden');
-            document.getElementById('saveNoteButton').onclick=saveDailyNote;
-            document.getElementById('addTaskButton').onclick=()=>{const t=document.getElementById('taskInput').value;if(t){if(!smokingData.dailyRecords[selectedDate].tasks)smokingData.dailyRecords[selectedDate].tasks=[];smokingData.dailyRecords[selectedDate].tasks.push({id:Date.now(),text:t,completed:false});saveSmokingDataToStorage();document.getElementById('taskInput').value='';}};
-            document.getElementById('trackerDailyTrendChartMonthSelect').onchange=updateMainChart;
-            document.getElementById('trackerDailyTrendChartYearSelect').onchange=updateMainChart;
+            loadData();
+            setInterval(updateTimerButtons, 1000);
+            document.getElementById('chartMonthSelect').onchange = updateTrendChart;
+            document.getElementById('chartYearSelect').onchange = updateTrendChart;
+            document.getElementById('prevMonthBtn').onclick = () => { currentDate.setMonth(currentDate.getMonth() - 1); renderCalendar(); };
+            document.getElementById('nextMonthBtn').onclick = () => { currentDate.setMonth(currentDate.getMonth() + 1); renderCalendar(); };
         });
     </script>
 </body>
