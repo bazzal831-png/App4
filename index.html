@@ -3,28 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Smoking Tracker (Auto Risk & Recovery)</title>
+    <title>Smoking Tracker (Local Storage Mode)</title>
     
-    <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#262626">
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3665/3665924.png">
 
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
-        /* --- CORE STYLES --- */
+        /* --- CORE STYLES (Identical to Original) --- */
         body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; background-color: #f4f4f4; margin: 0; padding-top: 20px; overflow-x: hidden; overflow-y: auto; }
-        #offline-indicator { display: none; width: 100%; background-color: #dc3545; color: white; text-align: center; padding: 10px; position: fixed; top: 0; z-index: 9999; font-weight: bold; }
         
-        #loginScreen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #262626; z-index: 2000; display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; }
-        #loginBtn { padding: 15px 30px; font-size: 1.2em; background: #4285F4; color: white; border: none; border-radius: 5px; cursor: pointer; display: flex; align-items: center; gap: 10px; }
+        /* Removed Login & Offline Styles as they are not needed for Local Mode */
+        
         #userInfo { position: absolute; top: 10px; right: 10px; font-size: 0.8em; color: #555; display: flex; align-items: center; gap: 10px; }
-        #logoutBtn { background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; }
         
         /* Calendar */
         .calendar-container { background-color: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); padding: 20px; width: 300px; margin: 40px auto 20px; display: flex; flex-direction: column; align-items: center; }
@@ -85,7 +78,6 @@
         
         .wishlist-container { margin-top: 15px; background: #2a2a2a; padding: 10px; border-radius: 5px; border: 1px solid #444; }
         
-        /* EDITED: Compact form */
         .wishlist-add-form { display: flex; gap: 3px; margin-bottom: 10px; }
         .wishlist-add-form input { flex: 1; padding: 6px; background: #444; border: 1px solid #555; color: white; border-radius: 4px; font-size: 0.9em; min-width: 0; }
         .wishlist-add-btn { background: #00e676; border: none; color: white; padding: 0 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 1.1em;}
@@ -165,7 +157,6 @@
         .progress-bar-bg { width: 100%; height: 12px; background: #444; border-radius: 6px; overflow: hidden; margin-top: 5px; position: relative; }
         .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #ff4444, #ff9900); width: 0%; transition: width 0.5s ease; }
         
-        /* Heatmap Styles */
         .heatmap-container { margin-bottom: 30px; }
         .heatmap-title { font-size: 1.1em; color: #bbb; margin-bottom: 10px; text-align: left; border-bottom: 1px solid #444; padding-bottom: 5px; }
         .heatmap-grid { display: flex; align-items: flex-end; justify-content: space-between; height: 150px; gap: 2px; padding-top: 20px; background: #333; border-radius: 4px; padding: 10px; }
@@ -180,20 +171,7 @@
 </head>
 <body>
 
-    <div id="offline-indicator">⚠️ You are OFFLINE. Data will sync when online.</div>
-
-    <div id="loginScreen">
-        <h2 style="margin-bottom: 30px;">Smoking Tracker Login</h2>
-        <button id="loginBtn"><span>G</span> Sign in with Google</button>
-        <p style="margin-top: 20px; color: #aaa; font-size: 0.9em;">Data is saved to the Cloud</p>
-    </div>
-
-    <div id="userInfo" class="hidden">
-        <span id="userEmail"></span>
-        <button id="logoutBtn">Logout</button>
-    </div>
-
-    <div class="calendar-container hidden" id="calendarContainer">
+    <div class="calendar-container" id="calendarContainer">
         <div class="calendar-header">
             <button id="prevMonthBtn">&lt;</button>
             <h2 id="currentMonth"></h2>
@@ -301,98 +279,31 @@
 
     <!-- Modals -->
     <div id="healthModal" class="modal-overlay"><div class="modal-content"><button class="close-modal" onclick="closeModal('healthModal')">×</button><h3>Health Recovery</h3><h2 id="timeSinceLastCig" style="color:#00e676;">0h 0m</h2><ul class="health-list" id="healthList"></ul></div></div>
-    
     <div id="breathingModal" class="modal-overlay"><div class="modal-content"><button class="close-modal" onclick="closeModal('breathingModal')">×</button><h3>Calm Down</h3><div class="circle-container" id="breathingContainer"><div class="breathing-circle"></div><div class="breathing-text" id="breathingText">Ready?</div></div></div></div>
-    
-    <!-- AUTOMATIC HEATMAP MODAL -->
-    <div id="heatmapModal" class="modal-overlay">
-        <div class="modal-content">
-            <button class="close-modal" onclick="closeModal('heatmapModal')">×</button>
-            <h3>Risk Times & Recovery</h3>
-            
-            <div class="heatmap-container">
-                <div class="heatmap-title">Historical Intensity</div>
-                <div class="heatmap-grid" id="heatmapGridOld"></div>
-                <div class="heatmap-labels">
-                    <span>12AM</span><span>3AM</span><span>6AM</span><span>9AM</span>
-                    <span>12PM</span><span>3PM</span><span>6PM</span><span>9PM</span>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div id="detoxModal" class="modal-overlay">
-        <div class="modal-content">
-            <button class="close-modal" onclick="closeModal('detoxModal')">×</button>
-            <h3>Monitor</h3>
-            <!-- EDITED: REMOVED MONEY TAB -->
-            <div class="detox-tabs">
-                <button class="detox-tab active" id="tabDaily" onclick="switchDetoxTab('daily')">Daily</button>
-                <button class="detox-tab" id="tabWeekly" onclick="switchDetoxTab('weekly')">Weekly</button>
-            </div>
-            
-            <div id="detoxStatsView">
-                <div class="detox-inputs">
-                    <div style="display:flex; justify-content:space-between;"><label>Years:</label><input type="number" id="historyYearsInput" placeholder="15" onchange="saveDetoxSettings()"></div>
-                    <div style="display:flex; justify-content:space-between;"><label>Old Avg:</label><input type="number" id="historyBaselineInput" placeholder="40" onchange="saveDetoxSettings()"></div>
-                </div>
-                <div class="detox-stats">
-                    <div class="detox-stat-item"><div class="detox-stat-title" id="detoxLoadTitle">Load</div><div class="progress-bar-bg"><div class="progress-bar-fill" id="detoxProgressBar"></div></div><div style="display:flex; justify-content:space-between; font-size:0.8em;"><span id="detoxCurrentVal">0</span><span id="detoxBaselineVal">40</span></div></div>
-                    <div class="detox-stat-item"><div class="detox-stat-title">Avoided</div><div class="detox-stat-val" id="detoxAvoidedToday" style="color:#00e676;">0</div></div>
-                    <div class="detox-stat-item"><div class="detox-stat-title">Reduction</div><div class="detox-stat-val" id="detoxReductionPercent">0%</div></div>
-                    
-                    <div class="detox-stat-item" id="detoxCostItem" style="margin-top:15px; border-top:1px solid #444; padding-top:10px;">
-                        <div class="detox-stat-title" id="detoxCostTitle">Daily Cost</div>
-                        <div class="detox-stat-val" id="detoxCostVal" style="color:#ffc107;">$0.00</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    <div id="heatmapModal" class="modal-overlay"><div class="modal-content"><button class="close-modal" onclick="closeModal('heatmapModal')">×</button><h3>Risk Times & Recovery</h3><div class="heatmap-container"><div class="heatmap-title">Historical Intensity</div><div class="heatmap-grid" id="heatmapGridOld"></div><div class="heatmap-labels"><span>12AM</span><span>3AM</span><span>6AM</span><span>9AM</span><span>12PM</span><span>3PM</span><span>6PM</span><span>9PM</span></div></div></div></div>
+    <div id="detoxModal" class="modal-overlay"><div class="modal-content"><button class="close-modal" onclick="closeModal('detoxModal')">×</button><h3>Monitor</h3><div class="detox-tabs"><button class="detox-tab active" id="tabDaily" onclick="switchDetoxTab('daily')">Daily</button><button class="detox-tab" id="tabWeekly" onclick="switchDetoxTab('weekly')">Weekly</button></div><div id="detoxStatsView"><div class="detox-inputs"><div style="display:flex; justify-content:space-between;"><label>Years:</label><input type="number" id="historyYearsInput" placeholder="15" onchange="saveDetoxSettings()"></div><div style="display:flex; justify-content:space-between;"><label>Old Avg:</label><input type="number" id="historyBaselineInput" placeholder="40" onchange="saveDetoxSettings()"></div></div><div class="detox-stats"><div class="detox-stat-item"><div class="detox-stat-title" id="detoxLoadTitle">Load</div><div class="progress-bar-bg"><div class="progress-bar-fill" id="detoxProgressBar"></div></div><div style="display:flex; justify-content:space-between; font-size:0.8em;"><span id="detoxCurrentVal">0</span><span id="detoxBaselineVal">40</span></div></div><div class="detox-stat-item"><div class="detox-stat-title">Avoided</div><div class="detox-stat-val" id="detoxAvoidedToday" style="color:#00e676;">0</div></div><div class="detox-stat-item"><div class="detox-stat-title">Reduction</div><div class="detox-stat-val" id="detoxReductionPercent">0%</div></div><div class="detox-stat-item" id="detoxCostItem" style="margin-top:15px; border-top:1px solid #444; padding-top:10px;"><div class="detox-stat-title" id="detoxCostTitle">Daily Cost</div><div class="detox-stat-val" id="detoxCostVal" style="color:#ffc107;">$0.00</div></div></div></div></div></div>
 
     <script>
         'use strict';
         
-        // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        // Firebase Config
-        // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        const firebaseConfig = { 
-            apiKey: "AIzaSyC7K8VY7GHb9BnA2OIpUN__zlm_OZm0kas", 
-            authDomain: "my-smoking-tracker.firebaseapp.com", 
-            projectId: "my-smoking-tracker", 
-            storageBucket: "my-smoking-tracker.firebasestorage.app", 
-            messagingSenderId: "464362470086", 
-            appId: "1:464362470086:web:1c43ae97b42b7b1db4f5c7" 
-        };
-        // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-        firebase.initializeApp(firebaseConfig); const db = firebase.firestore(); const auth = firebase.auth();
-        db.enablePersistence().catch(console.log);
-        if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'));
-
-        function requestNotificationPermission() { if (Notification.permission !== "granted" && Notification.permission !== "denied") Notification.requestPermission(); }
-        function showCooldownNotification() { if (Notification.permission === "granted" && navigator.serviceWorker) navigator.serviceWorker.ready.then(r => r.showNotification("Time's Up!", { body: "Log now.", icon: "https://cdn-icons-png.flaticon.com/512/3665/3665924.png", vibrate: [200], tag: "cooldown", renotify: true })); }
-        function updateOnlineStatus() { document.getElementById('offline-indicator').style.display = navigator.onLine ? 'none' : 'block'; }
-        window.addEventListener('online', updateOnlineStatus); window.addEventListener('offline', updateOnlineStatus);
-
-        let currentUser=null, unsubscribeDoc=null;
-        
-        document.getElementById('loginBtn').onclick = () => {
-            auth.signInWithPopup(new firebase.auth.GoogleAuthProvider())
-            .then((result) => { console.log("Logged in"); })
-            .catch((error) => { console.error("Login Error:", error); alert("Login Failed: " + error.message); });
-        };
-
-        document.getElementById('logoutBtn').onclick = () => auth.signOut();
-
-        auth.onAuthStateChanged(u => {
-            if (u) { currentUser=u; document.getElementById('loginScreen').classList.add('hidden'); document.getElementById('userInfo').classList.remove('hidden'); document.getElementById('calendarContainer').classList.remove('hidden'); document.getElementById('userEmail').textContent = u.email; loadSmokingDataFromCloud(); }
-            else { currentUser=null; smokingData={dailyRecords:{}, settings:{}}; if(unsubscribeDoc) unsubscribeDoc(); document.getElementById('loginScreen').classList.remove('hidden'); document.getElementById('calendarContainer').classList.add('hidden'); document.getElementById('trackerContainer').classList.add('hidden'); }
-        });
-
-        let currentDate=new Date(), selectedDate=null, smokingData={dailyRecords:{}, settings:{}};
+        // --- DATA HANDLING (Switched to LocalStorage) ---
+        let smokingData = { dailyRecords: {}, settings: {} };
+        let currentDate = new Date(), selectedDate = null;
         let currentDetoxTab = 'daily';
 
+        function saveSmokingDataToStorage() {
+            localStorage.setItem('smoking_tracker_data', JSON.stringify(smokingData));
+            if (!document.getElementById('trackerContainer').classList.contains('hidden')) refreshUI(); 
+            else renderCalendar();
+        }
+
+        function loadSmokingDataLocal() {
+            const saved = localStorage.getItem('smoking_tracker_data');
+            if (saved) smokingData = JSON.parse(saved);
+            renderCalendar();
+        }
+
+        // --- THE REST OF THE ORIGINAL LOGIC ---
         function getDeviceLocalTime() { return new Date(); }
         function ensureDailyRecordStructure(dR) {
             if(!dR.periods) dR={periods:[{startTime:getDeviceLocalTime().getTime(), endTime:null, cigarettes:0, lastActivity:getDeviceLocalTime().getTime(), entries:[]}], limit:0, note:'', tasks:[]};
@@ -417,14 +328,16 @@
             if(!smokingData.settings.wishlistGoals) smokingData.settings.wishlistGoals = [];
             smokingData.settings.wishlistGoals.push({id:Date.now(), name, cost});
             document.getElementById('newGoalName').value = ''; document.getElementById('newGoalCost').value = '';
-            saveSmokingDataToStorage(); refreshUI();
+            saveSmokingDataToStorage();
         }
+
         function deleteWishlistGoal(id) {
             if(confirm("Remove goal?")) {
                 smokingData.settings.wishlistGoals = smokingData.settings.wishlistGoals.filter(g => g.id !== id);
-                saveSmokingDataToStorage(); refreshUI();
+                saveSmokingDataToStorage();
             }
         }
+
         function calculateMoneyAndWishlist() {
             if(!smokingData.settings) smokingData.settings = {};
             const price = smokingData.settings.packPrice || 0;
@@ -449,21 +362,14 @@
 
             const listDiv = document.getElementById('wishlistList'); listDiv.innerHTML = '';
             const goals = smokingData.settings.wishlistGoals || [];
-            
             let remainingMoney = totalSavedMoney;
             goals.forEach(g => {
                 let fill = 0;
                 if (remainingMoney >= g.cost) { fill = 100; remainingMoney -= g.cost; }
                 else if (remainingMoney > 0) { fill = (remainingMoney / g.cost) * 100; remainingMoney = 0; }
-                
                 const item = document.createElement('div');
                 item.className = `wishlist-item ${fill>=100?'completed':''}`;
-                item.innerHTML = `
-                    <div class="wishlist-meta"><span>${g.name}</span><span>$${g.cost}</span></div>
-                    <div class="wishlist-bar-bg"><div class="wishlist-bar-fill" style="width:${fill}%"></div></div>
-                    <div style="font-size:0.7em; text-align:right; margin-top:2px; color:#aaa;">${fill.toFixed(1)}%</div>
-                    <button class="wishlist-delete" onclick="deleteWishlistGoal(${g.id})">Delete</button>
-                `;
+                item.innerHTML = `<div class="wishlist-meta"><span>${g.name}</span><span>$${g.cost}</span></div><div class="wishlist-bar-bg"><div class="wishlist-bar-fill" style="width:${fill}%"></div></div><div style="font-size:0.7em; text-align:right; margin-top:2px; color:#aaa;">${fill.toFixed(1)}%</div><button class="wishlist-delete" onclick="deleteWishlistGoal(${g.id})">Delete</button>`;
                 listDiv.appendChild(item);
             });
         }
@@ -474,7 +380,6 @@
             const count = (rec && rec.periods[0]) ? rec.periods[0].entries.length : 0;
             const limit = (rec && rec.limit > 0) ? rec.limit : (smokingData.settings.historyBaseline || 20);
             const ratio = count / limit;
-            
             icon.className = 'living-tree-icon';
             if (count === 0 || ratio < 0.5) { icon.textContent = "🌳"; icon.classList.add('tree-green'); }
             else if (ratio >= 0.5 && ratio <= 1.0) { icon.textContent = "🍂"; icon.classList.add('tree-yellow'); }
@@ -486,7 +391,6 @@
         
         function switchDetoxTab(tab) {
             currentDetoxTab = tab;
-            // EDITED: Loop only daily and weekly
             ['Daily','Weekly'].forEach(t => {
                 const el = document.getElementById('tab'+t);
                 if(el) el.className = (t.toLowerCase()===tab)?'detox-tab active':'detox-tab';
@@ -498,48 +402,31 @@
             const baselineDay = smokingData.settings.historyBaseline || 1;
             let actual = 0, baseline = 0;
             const rec = smokingData.dailyRecords[selectedDate];
-
             const packPrice = smokingData.settings.packPrice || 0;
             const packSize = smokingData.settings.packSize || 20;
             const costPerCig = packSize > 0 ? (packPrice / packSize) : 0;
-
             if (currentDetoxTab === 'daily') {
                 document.getElementById('detoxLoadTitle').textContent = "Daily Load";
                 actual = (rec && rec.periods[0]) ? rec.periods[0].entries.length : 0;
                 baseline = (rec && rec.limit > 0) ? rec.limit : baselineDay;
-                
                 document.getElementById('detoxCostTitle').textContent = "Daily Cost (Burnt)";
                 document.getElementById('detoxCostVal').textContent = '$' + (actual * costPerCig).toFixed(2);
             } else {
-                document.getElementById('detoxLoadTitle').textContent = "Weekly Load (Sum Limits)";
-                const now = new Date();
-                const startOfWeek = new Date(now); 
-                startOfWeek.setDate(now.getDate() - now.getDay()); 
-                startOfWeek.setHours(0,0,0,0);
-                
+                document.getElementById('detoxLoadTitle').textContent = "Weekly Load";
+                const now = new Date(); const startOfWeek = new Date(now); startOfWeek.setDate(now.getDate() - now.getDay()); startOfWeek.setHours(0,0,0,0);
                 for(let i=0; i<7; i++) {
-                    const d = new Date(startOfWeek);
-                    d.setDate(d.getDate() + i);
+                    const d = new Date(startOfWeek); d.setDate(d.getDate() + i);
                     const dStr = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
-                    
-                    if(smokingData.dailyRecords[dStr]) {
-                         actual += smokingData.dailyRecords[dStr].periods[0].entries.length;
-                         if(smokingData.dailyRecords[dStr].limit > 0) {
-                             baseline += smokingData.dailyRecords[dStr].limit;
-                         }
-                    }
+                    if(smokingData.dailyRecords[dStr]) { actual += smokingData.dailyRecords[dStr].periods[0].entries.length; if(smokingData.dailyRecords[dStr].limit > 0) baseline += smokingData.dailyRecords[dStr].limit; }
                 }
                 if(baseline === 0) baseline = 1; 
-
                 document.getElementById('detoxCostTitle').textContent = "Weekly Cost (Burnt)";
                 document.getElementById('detoxCostVal').textContent = '$' + (actual * costPerCig).toFixed(2);
             }
-
             const percent = Math.min((actual / baseline) * 100, 100);
             const bar = document.getElementById('detoxProgressBar');
             bar.style.width = percent + '%';
             bar.style.background = percent < 50 ? '#00e676' : (percent < 80 ? '#ff9900' : '#ff4444');
-            
             document.getElementById('detoxCurrentVal').textContent = actual;
             document.getElementById('detoxBaselineVal').textContent = baseline;
             document.getElementById('detoxAvoidedToday').textContent = Math.max(0, baseline - actual) + " cigs";
@@ -550,24 +437,13 @@
             if(!smokingData.settings) smokingData.settings={}; 
             smokingData.settings.packPrice = parseFloat(document.getElementById('packPriceInput').value); 
             smokingData.settings.packSize = parseInt(document.getElementById('packSizeInput').value);
-            saveSmokingDataToStorage(); refreshUI(); 
-        }
-        
-        function saveSmokingDataToStorage() {
-            if (currentUser && smokingData) {
-                db.collection('users').doc(currentUser.uid).set({
-                    smokingData: smokingData
-                }, { merge: true })
-                .then(() => { console.log("Saved to cloud"); })
-                .catch((e) => { console.error("Error saving: ", e); });
-            }
+            saveSmokingDataToStorage();
         }
 
         function handleNewCigarette(src) {
             let target=selectedDate; const now=getDeviceLocalTime();
             if(src==='today') target=`${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2,'0')}-${now.getDate().toString().padStart(2,'0')}`;
             let trig=document.getElementById('triggerSelect').value; if(trig==='Other')trig=document.getElementById('customTriggerInput').value; if(src==='today')trig="Quick Log";
-            
             let isFlagged = false;
             const existingRecord = smokingData.dailyRecords[target];
             if(existingRecord && existingRecord.limit > 0) {
@@ -576,32 +452,17 @@
                    const lastTime = p.entries[p.entries.length - 1].timestamp;
                    const allowedInterval = 57600000 / existingRecord.limit;
                    const nextAllowedTime = lastTime + allowedInterval;
-                   if(now.getTime() < nextAllowedTime) {
-                       isFlagged = true;
-                   }
+                   if(now.getTime() < nextAllowedTime) isFlagged = true;
                 }
             }
-
             const per=getOrCreateCurrentPeriod(target);
             const btn = src==='today'?document.getElementById('logCigaretteTodayButton'):document.querySelector('.log-btn');
-            
             if(src==='today' || target===`${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2,'0')}-${now.getDate().toString().padStart(2,'0')}`) {
-                if(btn && btn.getAttribute('data-status')==='cooldown'){if(!confirm("You are in cooling period. Log anyway?"))return;}
+                if(btn && btn.getAttribute('data-status')==='cooldown'){if(!confirm("Cooldown active. Log anyway?"))return;}
             }
-
-            per.entries.push({
-                id:now.getTime(), 
-                date:target, 
-                time:now.toLocaleTimeString(), 
-                timestamp:now.getTime(), 
-                reason:trig||"Unspecified",
-                flagged: isFlagged
-            });
-
+            per.entries.push({ id:now.getTime(), date:target, time:now.toLocaleTimeString(), timestamp:now.getTime(), reason:trig||"Unspecified", flagged: isFlagged });
             per.entries.sort((a,b)=>a.timestamp-b.timestamp); per.lastActivity=now.getTime();
             saveSmokingDataToStorage();
-            if(target===selectedDate) refreshUI(); else renderCalendar();
-            updateLogCigaretteButtonState();
         }
 
         function deleteEntry(id) {
@@ -609,52 +470,22 @@
                 const p = smokingData.dailyRecords[selectedDate].periods[0];
                 p.entries = p.entries.filter(e => e.id !== id);
                 p.entries.sort((a, b) => a.timestamp - b.timestamp);
-                if (p.entries.length > 0) {
-                    p.lastActivity = p.entries[p.entries.length - 1].timestamp;
-                } else {
-                    p.lastActivity = 0; 
-                }
+                p.lastActivity = p.entries.length > 0 ? p.entries[p.entries.length - 1].timestamp : 0;
                 saveSmokingDataToStorage();
-                refreshUI();
             }
         }
 
         function openHealthModal() { document.getElementById('healthModal').classList.add('active'); updateHealthTimeline(); }
         function openBreathingModal() { document.getElementById('breathingModal').classList.add('active'); startBreathingExercise(); }
-        
-        // --- AUTO HEATMAP & RECOVERY LOGIC (AUTOMATIC) ---
-        let hourlyCountsCached = new Array(24).fill(0);
-        
         function openHeatmapModal() {
             document.getElementById('heatmapModal').classList.add('active'); 
-            
-            // 1. حساب البيانات التاريخية (كم مرة دخنت في هذه الساعة سابقاً)
-            hourlyCountsCached = new Array(24).fill(0); 
-            Object.values(smokingData.dailyRecords).forEach(r => {
-                if(r.periods) r.periods[0].entries.forEach(e => {
-                    hourlyCountsCached[new Date(e.timestamp).getHours()]++;
-                });
-            });
-            
-            renderHeatmap1();
-        }
-
-        function renderHeatmap1() {
-            const grid = document.getElementById('heatmapGridOld');
-            grid.innerHTML = '';
+            let hourlyCountsCached = new Array(24).fill(0); 
+            Object.values(smokingData.dailyRecords).forEach(r => { if(r.periods) r.periods[0].entries.forEach(e => { hourlyCountsCached[new Date(e.timestamp).getHours()]++; }); });
+            const grid = document.getElementById('heatmapGridOld'); grid.innerHTML = '';
             const max = Math.max(...hourlyCountsCached) || 1;
-            
             hourlyCountsCached.forEach(v => {
-                const b = document.createElement('div');
-                b.className = 'heatmap-bar';
-                b.style.height = `${(v/max)*100}%`;
-                
-                if(v > 0) {
-                    const countSpan = document.createElement('span');
-                    countSpan.className = 'heatmap-count';
-                    countSpan.innerText = v;
-                    b.appendChild(countSpan);
-                }
+                const b = document.createElement('div'); b.className = 'heatmap-bar'; b.style.height = `${(v/max)*100}%`;
+                if(v > 0) { const countSpan = document.createElement('span'); countSpan.className = 'heatmap-count'; countSpan.innerText = v; b.appendChild(countSpan); }
                 grid.appendChild(b);
             });
         }
@@ -680,23 +511,16 @@
                 const a=document.createElement('a'); a.textContent=i; const d=`${y}-${(m+1).toString().padStart(2,'0')}-${i.toString().padStart(2,'0')}`;
                 a.onclick=()=>showTracker(d);
                 const c=(smokingData.dailyRecords[d]?.periods[0]?.entries.length)||0;
-                if(c>0){const d=document.createElement('div');d.className='daily-count-on-calendar';d.textContent=c;a.appendChild(d);}
+                if(c>0){const dv=document.createElement('div');dv.className='daily-count-on-calendar';dv.textContent=c;a.appendChild(dv);}
                 const n=getDeviceLocalTime(); if(d===`${n.getFullYear()}-${(n.getMonth()+1).toString().padStart(2,'0')}-${n.getDate().toString().padStart(2,'0')}`)a.classList.add('today');
                 g.appendChild(a);
             }
             updateLogCigaretteButtonState();
         }
+
         function showTracker(d) { selectedDate=d; document.getElementById('trackingDate').textContent=d; document.getElementById('calendarContainer').classList.add('hidden'); document.getElementById('trackerContainer').classList.remove('hidden'); refreshUI(); window.scrollTo({top:0}); }
         function goBackToCalendar() { document.getElementById('trackerContainer').classList.add('hidden'); document.getElementById('calendarContainer').classList.remove('hidden'); selectedDate=null; renderCalendar(); }
-        function loadSmokingDataFromCloud() { if(currentUser) db.collection('users').doc(currentUser.uid).onSnapshot(d=>{if(d.exists)smokingData=d.data().smokingData||{dailyRecords:{},settings:{}}; if(!document.getElementById('trackerContainer').classList.contains('hidden'))refreshUI(); else renderCalendar();}); }
-        function populateChartSelects() {
-            const m=document.getElementById('trackerDailyTrendChartMonthSelect'), y=document.getElementById('trackerDailyTrendChartYearSelect');
-            if(!m.options.length) ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].forEach((v,i)=>m.innerHTML+=`<option value="${i}">${v}</option>`);
-            let tY,tM; if(selectedDate){const p=selectedDate.split('-');tY=parseInt(p[0]);tM=parseInt(p[1])-1;}else{const n=new Date();tY=n.getFullYear();tM=n.getMonth();}
-            y.innerHTML=''; const ys=new Set(Object.keys(smokingData.dailyRecords).map(k=>new Date(k).getFullYear())); ys.add(new Date().getFullYear()); ys.add(tY);
-            Array.from(ys).sort((a,b)=>b-a).forEach(v=>y.innerHTML+=`<option value="${v}">${v}</option>`);
-            m.value=tM; y.value=tY;
-        }
+        
         function updateMainChart() {
             const ctx=document.getElementById('dailyTrendChart'); if(!ctx)return;
             const m=parseInt(document.getElementById('trackerDailyTrendChartMonthSelect').value), y=parseInt(document.getElementById('trackerDailyTrendChartYearSelect').value);
@@ -705,130 +529,72 @@
             if(window.myChart)window.myChart.destroy();
             window.myChart=new Chart(ctx,{type:'line',data:{labels:ds.map(d=>d.split('-')[2]),datasets:[{label:'Cigs',data:cs.length?cs:[0],borderColor:'#00e676',tension:0.4}]}});
         }
+
         function refreshUI() {
             if(!selectedDate)return;
-            if(!smokingData.settings)smokingData.settings={};
+            const rec=smokingData.dailyRecords[selectedDate]||ensureDailyRecordStructure({});
             document.getElementById('packPriceInput').value=smokingData.settings.packPrice||0;
             document.getElementById('packSizeInput').value=smokingData.settings.packSize||20;
-            
-            const rec=smokingData.dailyRecords[selectedDate]||ensureDailyRecordStructure({});
             document.getElementById('dailyCount').textContent=rec.periods[0].entries.length;
             calculateMoneyAndWishlist(); updateLivingTree();
-            
             document.getElementById('dailyNoteTextarea').value=rec.note||'';
             const ul=document.getElementById('taskList'); ul.innerHTML='';
-            rec.tasks.forEach(t=>{ul.innerHTML+=`<li><input type="checkbox" ${t.completed?'checked':''} onchange="toggleTask(${t.id})"><label>${t.text}</label><button onclick="delTask(${t.id})">×</button></li>`});
-            
+            if(rec.tasks) rec.tasks.forEach(t=>{ul.innerHTML+=`<li><input type="checkbox" ${t.completed?'checked':''} onchange="toggleTask(${t.id})"><label>${t.text}</label><button onclick="delTask(${t.id})">×</button></li>`});
             document.getElementById('dailyLimitInput').value = (rec && rec.limit > 0) ? rec.limit : '';
-            document.getElementById('saveDailyLimitButton').classList.add('hidden');
-
-            populateChartSelects(); updateMainChart();
+            
+            // Re-populate filters and update chart
+            const mS=document.getElementById('trackerDailyTrendChartMonthSelect'), yS=document.getElementById('trackerDailyTrendChartYearSelect');
+            if(!mS.options.length) ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].forEach((v,i)=>mS.innerHTML+=`<option value="${i}">${v}</option>`);
+            let tY,tM; const p=selectedDate.split('-'); tY=parseInt(p[0]); tM=parseInt(p[1])-1;
+            yS.innerHTML=''; const ys=new Set(Object.keys(smokingData.dailyRecords).map(k=>new Date(k).getFullYear())); ys.add(new Date().getFullYear()); ys.add(tY);
+            Array.from(ys).sort((a,b)=>b-a).forEach(v=>yS.innerHTML+=`<option value="${v}">${v}</option>`);
+            mS.value=tM; yS.value=tY;
+            updateMainChart();
             
             const tb=document.getElementById('dataBody'); tb.innerHTML='';
             rec.periods[0].entries.forEach((e,i,a)=>{
                 const d=i>0?getTimeDifference(a[i-1].timestamp,e.timestamp):'-';
-                const rowClass = e.flagged ? 'flagged-row' : '';
-                const reasonText = e.reason + (e.flagged ? ' ⚠️' : '');
-                
-                tb.innerHTML+=`<tr class="${rowClass}"><td>${e.time}</td><td>${d}</td><td>${reasonText}</td><td><button class="delete-btn" onclick="deleteEntry(${e.id})">Del</button></td></tr>`
+                tb.innerHTML+=`<tr class="${e.flagged?'flagged-row':''}"><td>${e.time}</td><td>${d}</td><td>${e.reason + (e.flagged ? ' ⚠️' : '')}</td><td><button class="delete-btn" onclick="deleteEntry(${e.id})">Del</button></td></tr>`
             });
             updateLogCigaretteButtonState();
         }
 
         function updateLogCigaretteButtonState() {
-            const b1 = document.getElementById('logCigaretteTodayButton');
-            const b2 = document.querySelector('.log-btn');
-            const n = new Date();
+            const b1 = document.getElementById('logCigaretteTodayButton'); const b2 = document.querySelector('.log-btn'); const n = new Date();
             const tStr = `${n.getFullYear()}-${(n.getMonth()+1).toString().padStart(2,'0')}-${n.getDate().toString().padStart(2,'0')}`;
-            
             const getS = (d) => {
-                const r = smokingData.dailyRecords[d];
-                const lim = r ? r.limit : 0;
-                let l = 0;
-                if (r && r.periods[0].entries.length > 0) {
-                    l = r.periods[0].entries[r.periods[0].entries.length - 1].timestamp;
-                }
-                
-                let t = 0, c = false; 
-                if(lim > 0 && l > 0){
-                    t = l + (57600000 / lim); 
-                    if(t > Date.now()) c = true;
-                } 
+                const r = smokingData.dailyRecords[d]; const lim = r ? r.limit : 0; let l = 0;
+                if (r && r.periods[0].entries.length > 0) l = r.periods[0].entries[r.periods[0].entries.length - 1].timestamp;
+                let t = 0, c = false; if(lim > 0 && l > 0){ t = l + (57600000 / lim); if(t > Date.now()) c = true; } 
                 return {t, c, l};
             };
-
             const s = getS(tStr);
-            
-            if(b1) {
-                if (s.l === 0) {
-                    clearInterval(b1.int);
-                    b1.innerHTML = "Log Cigarette Today";
-                    b1.setAttribute('data-status', 'normal');
-                } else {
-                    runTimer(b1, s.t, s.c, s.l, true);
-                }
-            }
-
-            if(b2 && selectedDate) {
-                const todayFormatted = `${n.getFullYear()}-${(n.getMonth()+1).toString().padStart(2,'0')}-${n.getDate().toString().padStart(2,'0')}`;
-                if(selectedDate === todayFormatted) {
-                    if (s.l === 0) {
-                        clearInterval(b2.int);
-                        b2.innerHTML = "Log New Cigarette";
-                        b2.setAttribute('data-status', 'normal');
-                    } else {
-                        runTimer(b2, s.t, s.c, s.l, false);
-                    }
-                } else { 
-                    if(b2.int) clearInterval(b2.int); 
-                    b2.setAttribute('data-status','normal'); 
-                    b2.innerHTML="Log New"; 
-                }
-            }
+            if(b1) { if (s.l === 0) { clearInterval(b1.int); b1.innerHTML = "Log Cigarette Today"; b1.setAttribute('data-status', 'normal'); } else runTimer(b1, s.t, s.c, s.l, true); }
+            if(b2 && selectedDate) { if(selectedDate === tStr) { if (s.l === 0) { clearInterval(b2.int); b2.innerHTML = "Log New Cigarette"; b2.setAttribute('data-status', 'normal'); } else runTimer(b2, s.t, s.c, s.l, false); } else { if(b2.int) clearInterval(b2.int); b2.setAttribute('data-status','normal'); b2.innerHTML="Log New"; } }
         }
 
         function runTimer(b, t, c, l, isCal) {
-            clearInterval(b.int);
-            const tick=()=>{
-                if(c){
-                    const r=Math.max(0,t-Date.now()); 
-                    b.innerHTML=(isCal?'Log':'Log')+(r>0?` <span class="cooldown-timer-display">(${formatDuration(r/1000)})</span>`:''); 
-                    b.setAttribute('data-status','cooldown'); 
-                    if(r<=0){clearInterval(b.int);showCooldownNotification();updateLogCigaretteButtonState();}
-                } else {
-                    const e=Math.max(0,Date.now()-l); 
-                    b.innerHTML=(isCal?'Log':'Log')+` <span class="elapsed-counter">${formatDuration(e/1000)}</span>`; 
-                    b.setAttribute('data-status','allowed');
-                }
+            clearInterval(b.int); const tick=()=>{
+                if(c){ const r=Math.max(0,t-Date.now()); b.innerHTML=(isCal?'Log':'Log')+(r>0?` <span class="cooldown-timer-display">(${formatDuration(r/1000)})</span>`:''); b.setAttribute('data-status','cooldown'); if(r<=0){clearInterval(b.int);updateLogCigaretteButtonState();} } 
+                else { const e=Math.max(0,Date.now()-l); b.innerHTML=(isCal?'Log':'Log')+` <span class="elapsed-counter">${formatDuration(e/1000)}</span>`; b.setAttribute('data-status','allowed'); }
             }; tick(); b.int=setInterval(tick,1000);
         }
 
-        function toggleTask(id){const r=smokingData.dailyRecords[selectedDate];const t=r.tasks.find(x=>x.id===id);t.completed=!t.completed;saveSmokingDataToStorage();refreshUI();}
-        function delTask(id){const r=smokingData.dailyRecords[selectedDate];r.tasks=r.tasks.filter(x=>x.id!==id);saveSmokingDataToStorage();refreshUI();}
-        
-        function saveDailyLimit(){
-            const v=parseInt(document.getElementById('dailyLimitInput').value);
-            if(!smokingData.dailyRecords[selectedDate]) smokingData.dailyRecords[selectedDate] = ensureDailyRecordStructure({});
-            smokingData.dailyRecords[selectedDate].limit=v;
-            saveSmokingDataToStorage();
-            document.getElementById('saveDailyLimitButton').classList.add('hidden');
-            refreshUI();
-        }
-
+        function toggleTask(id){const r=smokingData.dailyRecords[selectedDate];const t=r.tasks.find(x=>x.id===id);t.completed=!t.completed;saveSmokingDataToStorage();}
+        function delTask(id){const r=smokingData.dailyRecords[selectedDate];r.tasks=r.tasks.filter(x=>x.id!==id);saveSmokingDataToStorage();}
+        function saveDailyLimit(){const v=parseInt(document.getElementById('dailyLimitInput').value); if(!smokingData.dailyRecords[selectedDate]) smokingData.dailyRecords[selectedDate] = ensureDailyRecordStructure({}); smokingData.dailyRecords[selectedDate].limit=v; saveSmokingDataToStorage(); document.getElementById('saveDailyLimitButton').classList.add('hidden');}
         function saveDailyNote(){smokingData.dailyRecords[selectedDate].note=document.getElementById('dailyNoteTextarea').value;saveSmokingDataToStorage();document.getElementById('saveNoteButton').classList.add('hidden');}
-        function resetAllData(){if(confirm("Reset?")){smokingData.dailyRecords={};saveSmokingDataToStorage();renderCalendar();}}
+        function resetAllData(){if(confirm("Reset ALL data locally?")){smokingData.dailyRecords={};saveSmokingDataToStorage();renderCalendar();}}
 
         document.addEventListener('DOMContentLoaded', () => {
-            requestNotificationPermission();
-            const pb=document.getElementById('prevMonthBtn'), nb=document.getElementById('nextMonthBtn');
-            pb.onclick=()=>{currentDate.setDate(1);currentDate.setMonth(currentDate.getMonth()-1);renderCalendar();};
-            nb.onclick=()=>{currentDate.setDate(1);currentDate.setMonth(currentDate.getMonth()+1);renderCalendar();};
+            loadSmokingDataLocal();
+            document.getElementById('prevMonthBtn').onclick=()=>{currentDate.setMonth(currentDate.getMonth()-1);renderCalendar();};
+            document.getElementById('nextMonthBtn').onclick=()=>{currentDate.setMonth(currentDate.getMonth()+1);renderCalendar();};
             document.getElementById('dailyLimitInput').oninput=()=>document.getElementById('saveDailyLimitButton').classList.remove('hidden');
             document.getElementById('saveDailyLimitButton').onclick=saveDailyLimit;
             document.getElementById('dailyNoteTextarea').oninput=()=>document.getElementById('saveNoteButton').classList.remove('hidden');
             document.getElementById('saveNoteButton').onclick=saveDailyNote;
-            document.getElementById('addTaskButton').onclick=()=>{const t=document.getElementById('taskInput').value;if(t){if(!smokingData.dailyRecords[selectedDate].tasks)smokingData.dailyRecords[selectedDate].tasks=[];smokingData.dailyRecords[selectedDate].tasks.push({id:Date.now(),text:t,completed:false});saveSmokingDataToStorage();refreshUI();document.getElementById('taskInput').value='';}};
-            document.addEventListener('visibilitychange',()=>!document.hidden&&updateLogCigaretteButtonState());
+            document.getElementById('addTaskButton').onclick=()=>{const t=document.getElementById('taskInput').value;if(t){if(!smokingData.dailyRecords[selectedDate].tasks)smokingData.dailyRecords[selectedDate].tasks=[];smokingData.dailyRecords[selectedDate].tasks.push({id:Date.now(),text:t,completed:false});saveSmokingDataToStorage();document.getElementById('taskInput').value='';}};
             document.getElementById('trackerDailyTrendChartMonthSelect').onchange=updateMainChart;
             document.getElementById('trackerDailyTrendChartYearSelect').onchange=updateMainChart;
         });
